@@ -1,4 +1,4 @@
-package com.tiger.baas.controller;
-
-public class SynController {
-}
+//package com.tiger.baas.controller;
+//
+//public class SynController {
+//}

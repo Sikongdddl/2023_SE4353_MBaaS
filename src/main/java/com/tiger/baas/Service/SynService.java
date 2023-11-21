@@ -1,4 +1,4 @@
-package com.tiger.baas.Service;
-
-public class SynService {
-}
+//package com.tiger.baas.Service;
+//
+//public class SynService {
+//}

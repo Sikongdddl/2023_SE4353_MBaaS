@@ -1,9 +1,11 @@
 package com.tiger.baas.config;
 
+import org.springframework.boot.autoconfigure.batch.BatchProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @Configuration
 public class GlobalCorsConfig {
@@ -21,4 +23,5 @@ public class GlobalCorsConfig {
             }
         };
     }
+
 }

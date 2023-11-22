@@ -3,11 +3,20 @@ package com.tiger.baas.controller;
 //import com.tiger.baas.Service.SynService;
 import com.tiger.baas.Service.TableService;
 import com.tiger.baas.utils.Result;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import com.tiger.baas.utils.UtilFunc;
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.persistence.EntityManager;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,34 +24,49 @@ import java.util.Map;
 
 @RestController
 public class TableController {
+
     @Resource
     private TableService tableService;
+
+    private UtilFunc utilFunc = new UtilFunc();
 //    @Resource
 //    private SynService synService;
 
     @PostMapping("/synMetadata")
-    public Result<Map<String, List<String>>> synMetadata(@RequestParam String database_id) throws IllegalAccessException {
+    public Result<Map<String, List<String>>> synMetadata(@RequestBody JSONObject jsonObject) throws IllegalAccessException {
         List<String> fieldList = new ArrayList<>();
         Map<String, List<String>> metaData = new HashMap<>();
-        metaData = tableService.gainMeta(database_id);
-
+        metaData = tableService.gainMeta(jsonObject.getString("databaseId"));
         return Result.success(metaData,"1","请查收您现在的Metadata");
     }
 
     @PostMapping("/setFields")
-    public Result setFields(@RequestParam String databaseId, @RequestParam String tableId, @RequestParam List<String> newFields){
-        String errno = tableService.setFields(databaseId, tableId, newFields);
-        return Result.success(errno,"覆盖设置表字段成功");
+    public Result setFields(@RequestBody JSONObject jsonObject){
+        System.out.println(jsonObject.toString());
+        System.out.println("go into service");
+        String databaseId = jsonObject.getString("databaseId");
+        String tableId = jsonObject.getString("tableId");
+        List<String> newFields = utilFunc.jsonArrayToList(jsonObject.getJSONArray("newFields"));
+
+        System.out.println(databaseId + tableId + newFields.toString());
+        String errno = tableService.setFields(databaseId,tableId,newFields);
+        return Result.success(errno,"覆盖设置字段成功");
     }
 
     @PostMapping("/addField")
-    public Result addFields(@RequestParam String databaseId, @RequestParam String tableId, @RequestParam String newField){
+    public Result addFields(@RequestBody JSONObject jsonObject){
+        String databaseId = jsonObject.getString("databaseId");
+        String tableId = jsonObject.getString("tableId");
+        String newField = jsonObject.getString("newField");
         String errno = tableService.addFields(databaseId, tableId, newField);
         return Result.success(errno,"添加表字段成功");
     }
 
     @PostMapping("/deleteField")
-    public Result deleteFields(@RequestParam String databaseId, @RequestParam String tableId, @RequestParam String deleteField){
+    public Result deleteFields(@RequestBody JSONObject jsonObject){
+        String databaseId = jsonObject.getString("databaseId");
+        String tableId = jsonObject.getString("tableId");
+        String deleteField = jsonObject.getString("deleteField");
         String errno = tableService.deleteFields(databaseId, tableId, deleteField);
         return Result.success(errno,"删除表字段成功");
     }

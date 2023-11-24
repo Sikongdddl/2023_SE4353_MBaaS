@@ -70,32 +70,55 @@ public class TableController {
         String errno = tableService.deleteFields(databaseId, tableId, deleteField);
         return Result.success(errno,"删除表字段成功");
     }
-//
-//    @PostMapping("/addRecord")
-//    public Result addRecord(@RequestParam String databaseId, @RequestParam String tableId, @RequestParam Map<String, String> payload){
-//        String errno = tableService.addRecord(databaseId, tableId, payload);
-//        return Result.success(errno,"成功添加一条记录");
-//    }
-//
-//    //set null at default fields
-//    @PostMapping("/setRecord")
+
+    @PostMapping("/addRecord")
+    public Result addRecord(@RequestBody JSONObject jsonObject){
+        String databaseId = jsonObject.getString("databaseId");
+        String tableId = jsonObject.getString("tableId");
+        Map<String, String> payload = jsonObject.getJSONObject("payload");
+        System.out.println("payload:"+payload);
+        String errno = tableService.addRecord(databaseId, tableId,payload);
+        return Result.success(errno,"添加表字段成功");
+
+    }
+
+    //set null at default fields
+    //insert null value brings strange bug
+    //so String "nullValue" infers to null value
+    //Please Take Care!
+    @PostMapping("/setRecord")
 //    public Result setRecord(@RequestParam String databaseId, @RequestParam String tableId, @RequestParam String rowId, @RequestParam Map<String, String> payload){
 //        String errno = tableService.setRecord(databaseId, tableId, rowId, payload);
 //        return Result.success(errno,"成功设置一条记录");
 //    }
-//
-//    //don't modify default fields
-//    @PostMapping("/updateRecord")
-//    public Result updateRecord(@RequestParam String databaseId, @RequestParam String tableId, @RequestParam String rowId, @RequestParam Map<String, String> payload){
-//        String errno = tableService.updateRecord(databaseId, tableId, rowId, payload);
-//        return Result.success(errno,"成功更新一条记录");
-//    }
-//
-//    @PostMapping("/deleteRecord")
-//    public Result deleteRecord(@RequestParam String databaseId, @RequestParam String tableId, @RequestParam String rowId){
-//        String errno = tableService.deleteRecord(databaseId, tableId, rowId);
-//        return Result.success(errno,"成功删除一条记录");
-//    }
+    public Result setRecord(@RequestBody JSONObject jsonObject) throws IllegalAccessException {
+        String databaseId = jsonObject.getString("databaseId");
+        String tableId = jsonObject.getString("tableId");
+        String rowId = jsonObject.getString("rowId");
+        Map<String, String> payload = jsonObject.getJSONObject("payload");
+        String errno = tableService.setRecord(databaseId, tableId, rowId, payload);
+        return Result.success(errno,"成功设置一条记录");
+    }
+
+    //don't modify default fields
+    @PostMapping("/updateRecord")
+    public Result updateRecord(@RequestBody JSONObject jsonObject){
+        String databaseId = jsonObject.getString("databaseId");
+        String tableId = jsonObject.getString("tableId");
+        String rowId = jsonObject.getString("rowId");
+        Map<String, String> payload = jsonObject.getJSONObject("payload");
+        String errno = tableService.updateRecord(databaseId, tableId, rowId, payload);
+        return Result.success(errno,"成功更新一条记录");
+    }
+
+    @PostMapping("/deleteRecord")
+    public Result deleteRecord(@RequestBody JSONObject jsonObject){
+        String databaseId = jsonObject.getString("databaseId");
+        String tableId = jsonObject.getString("tableId");
+        String rowId = jsonObject.getString("rowId");
+        String errno = tableService.deleteRecord(databaseId, tableId, rowId);
+        return Result.success(errno,"成功删除一条记录");
+    }
 //
 //    @PostMapping("subscribe")
 //    public Result subscribe(@RequestParam String databaseId, @RequestParam String tableId){

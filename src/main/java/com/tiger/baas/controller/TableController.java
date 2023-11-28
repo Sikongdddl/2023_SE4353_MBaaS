@@ -1,7 +1,9 @@
 package com.tiger.baas.controller;
 
 //import com.tiger.baas.Service.SynService;
+import com.tiger.baas.Service.SynService;
 import com.tiger.baas.Service.TableService;
+import com.tiger.baas.utils.RegisterBuffer;
 import com.tiger.baas.utils.Result;
 import com.tiger.baas.utils.UtilFunc;
 import net.sf.json.JSONArray;
@@ -29,8 +31,9 @@ public class TableController {
     private TableService tableService;
 
     private UtilFunc utilFunc = new UtilFunc();
-//    @Resource
-//    private SynService synService;
+
+    @Resource
+    private SynService synService;
 
     @PostMapping("/synMetadata")
     public Result<Map<String, List<String>>> synMetadata(@RequestBody JSONObject jsonObject) throws IllegalAccessException {
@@ -119,23 +122,58 @@ public class TableController {
         String errno = tableService.deleteRecord(databaseId, tableId, rowId);
         return Result.success(errno,"成功删除一条记录");
     }
-//
-//    @PostMapping("subscribe")
-//    public Result subscribe(@RequestParam String databaseId, @RequestParam String tableId){
-//        String errno = synService.subscribe();
-//        return Result.success(errno,"成功订阅");
-//    }
-//
-//    @PostMapping("query")
-//    public Result<List<Map<String, String>>> query(@RequestBody QueryJson){
-//        String errno = tableService.query();
-//        return Result.success(QueryResult, errno, "Query完毕");
+
+    @PostMapping("subscribe")
+    public Result subscribe(@RequestBody JSONObject jsonObject){
+        String databaseId = jsonObject.getString("databaseId");
+        String tableId = jsonObject.getString("tableId");
+        String deviceId = jsonObject.getString("deviceId");
+        String errno = synService.subscribe(databaseId,tableId,deviceId);
+        return Result.success(errno,"成功订阅");
+    }
+
+    @PostMapping("unSubscribe")
+    public Result unSubscribe(@RequestBody JSONObject jsonObject){
+        String databaseId = jsonObject.getString("databaseId");
+        String tableId = jsonObject.getString("tableId");
+        String deviceId = jsonObject.getString("deviceId");
+        String errno = synService.unSubscribe(databaseId,tableId,deviceId);
+        return Result.success(errno,"成功取消订阅");
+    }
+    //support a single where condition every query
+    //should we support multi-conditions query?
+    @PostMapping("query")
+    public Result<List<Map<String, String>>> query(@RequestBody JSONObject jsonObject){
+        String databaseId = jsonObject.getString("databaseId");
+        String tableId = jsonObject.getString("tableId");
+        List<String> whereCondition = utilFunc.jsonArrayToList(jsonObject.getJSONArray("whereConditions"));
+        List<Map<String, String>> QueryResult = tableService.query(databaseId,tableId,whereCondition);
+        String errno = "0";
+        return Result.success(QueryResult, errno, "Query完毕");
+    }
+
+    @PostMapping("join")
+    public Result<List<Map<String, String>>> join(@RequestBody JSONObject jsonObject){
+        String databaseId = jsonObject.getString("databaseId");
+        String tableId_1 = jsonObject.getString("tableId_1");
+        String tableId_2 = jsonObject.getString("tableId_2");
+        String fieldId_1 = jsonObject.getString("fieldId_1");
+        String fieldId_2 = jsonObject.getString("fieldId_2");
+
+        List<Map<String, String>> joinResult = tableService.join(databaseId,tableId_1,tableId_2,fieldId_1, fieldId_2);
+        String errno = "0";
+        return Result.success(joinResult, errno, "join完毕");
+    }
+    //return full query list and parse by frontend
+    //reduce pressure of ipads server XD
+//    @PostMapping("aggregation")
+//    public Result<List<Map<String, String>>> aggregation(@RequestBody JSONObject jsonObject){
 //    }
 
     /*
     * Todo:
-    *  aggregation
     *  websocket
+    *  test query and join
     * */
 
 

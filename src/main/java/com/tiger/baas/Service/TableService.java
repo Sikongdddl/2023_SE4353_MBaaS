@@ -2,6 +2,7 @@ package com.tiger.baas.Service;
 
 import com.tiger.baas.entity.MetaData;
 import com.tiger.baas.repository.MetaDataRepo;
+import com.tiger.baas.utils.UtilFunc;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -29,6 +30,8 @@ public class TableService {
 
     @Resource
     private MetaDataRepo metaDataRepo;
+
+    private UtilFunc utilFunc = new UtilFunc();
 
     public List<String> getAllTableNames() {
         return entityManager.createNativeQuery("SHOW TABLES").getResultList();
@@ -230,4 +233,30 @@ public class TableService {
         jdbcTemplate.update(sql,rowId);
         return "0";
     }
+
+    public List<Map<String, String>> query(String databaseId, String tableId, List<String> whereConditions){
+        String whereField = whereConditions.get(0);
+        String whereRelation = whereConditions.get(1);
+        String whereTargetValue = whereConditions.get(2);
+
+        String sql = "SELECT * FROM "+tableId + " WHERE " + whereField + " " + whereRelation + " " + whereTargetValue;
+
+        List<Map<String, Object>> resultList = jdbcTemplate.queryForList(sql);
+
+        List<Map<String, String>> res = utilFunc.convertListMapsToStringValues(resultList);
+
+        return res;
+    }
+
+    public List<Map<String, String>> join(String databaseId, String tableId_1, String tableId_2, String fieldId_1, String fieldId_2){
+        String sql = "SELECT t1.*, t2.* " +  " FROM " + tableId_1 + " t1 " + "INNER JOIN " + tableId_2 + " t2 ON t1." + fieldId_1 + " = t2." + fieldId_2;
+
+        List<Map<String, Object>> resultList = jdbcTemplate.queryForList(sql);
+
+        List<Map<String, String>> res = utilFunc.convertListMapsToStringValues(resultList);
+
+        return res;
+    }
+
+
 }

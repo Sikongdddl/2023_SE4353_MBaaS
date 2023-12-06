@@ -9,11 +9,13 @@ public class SynService {
 
     public String subscribe(String databaseId, String tableId, String deviceId){
         registerBuffer.add(databaseId, tableId, deviceId);
+        registerBuffer.Traverse();
         return "0";
     }
 
     public String unSubscribe(String databaseId, String tableId, String deviceId){
         registerBuffer.delete(databaseId,tableId,deviceId);
+        registerBuffer.Traverse();
         return "0";
     }
 }

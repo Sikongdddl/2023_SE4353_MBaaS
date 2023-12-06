@@ -36,9 +36,9 @@ public class TableController {
     private SynService synService;
 
     @PostMapping("/synMetadata")
-    public Result<Map<String, List<String>>> synMetadata(@RequestBody JSONObject jsonObject) throws IllegalAccessException {
+    public Result<Map<String, Map<String, String>>> synMetadata(@RequestBody JSONObject jsonObject) throws IllegalAccessException {
         List<String> fieldList = new ArrayList<>();
-        Map<String, List<String>> metaData = new HashMap<>();
+        Map<String, Map<String, String>> metaData = new HashMap<>();
         metaData = tableService.gainMeta(jsonObject.getString("databaseId"));
         return Result.success(metaData,"1","请查收您现在的Metadata");
     }
@@ -49,10 +49,11 @@ public class TableController {
         System.out.println("go into service");
         String databaseId = jsonObject.getString("databaseId");
         String tableId = jsonObject.getString("tableId");
-        List<String> newFields = utilFunc.jsonArrayToList(jsonObject.getJSONArray("newFields"));
+        //List<String> newFields = utilFunc.jsonArrayToList(jsonObject.getJSONArray("newFields"));
+        Map<String, String> newFieldsMap = jsonObject.getJSONObject("newFields");
 
-        System.out.println(databaseId + tableId + newFields.toString());
-        String errno = tableService.setFields(databaseId,tableId,newFields);
+        System.out.println(databaseId + tableId + newFieldsMap.toString());
+        String errno = tableService.setFields(databaseId,tableId,newFieldsMap);
         return Result.success(errno,"覆盖设置字段成功");
     }
 
@@ -61,7 +62,8 @@ public class TableController {
         String databaseId = jsonObject.getString("databaseId");
         String tableId = jsonObject.getString("tableId");
         String newField = jsonObject.getString("newField");
-        String errno = tableService.addFields(databaseId, tableId, newField);
+        String fieldType = jsonObject.getString("fieldType");
+        String errno = tableService.addFields(databaseId, tableId, newField,fieldType);
         return Result.success(errno,"添加表字段成功");
     }
 
@@ -172,9 +174,11 @@ public class TableController {
 
     /*
     * Todo:
-    *  websocket
     *  test query and join
+    *  implement multi-conditions query
+    *  websocket
+    *  deployment
+    *  refact errno return value
+    *  deal with different database with the same table name
     * */
-
-
 }

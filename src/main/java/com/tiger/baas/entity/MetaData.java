@@ -13,8 +13,9 @@ public class MetaData {
 
     private String fieldname;
 
-    private String tablebelong;
+    private String fieldtype;
 
+    private String tablebelong;
     public long getUuid() {
         return uuid;
     }
@@ -37,6 +38,14 @@ public class MetaData {
 
     public void setFieldname(String fieldname) {
         this.fieldname = fieldname;
+    }
+
+    public String getFieldtype() {
+        return fieldtype;
+    }
+
+    public void setFieldtype(String fieldtype) {
+        this.fieldtype = fieldtype;
     }
 
     public String getTablebelong() {

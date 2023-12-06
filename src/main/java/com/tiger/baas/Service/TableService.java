@@ -37,12 +37,32 @@ public class TableService {
         return entityManager.createNativeQuery("SHOW TABLES").getResultList();
     }
 
-    public void createTable(String tableName, List<String> fields){
+    public void createTable(String tableName, Map<String, String> fields){
     String createTableSQL = "CREATE TABLE IF NOT EXISTS "+tableName+" ("
             + "uuid INT AUTO_INCREMENT PRIMARY KEY,";
-    for (String field : fields){
-        createTableSQL = createTableSQL + field + " VARCHAR(255),";
+
+    for(Map.Entry<String, String> entry : fields.entrySet()){
+        createTableSQL = createTableSQL + entry.getKey();
+
+        if(Objects.equals(entry.getValue(), "string")){
+            createTableSQL += " VARCHAR(255),";
+        }
+
+        if(Objects.equals(entry.getValue(), "boolean")){
+            createTableSQL += " INT,";
+        }
+        if(Objects.equals(entry.getValue(), "int")){
+            createTableSQL += " INT,";
+        }
+        if(Objects.equals(entry.getValue(), "double")){
+            createTableSQL += " DOUBLE,";
+        }
+        if(Objects.equals(entry.getValue(), "image")){
+            createTableSQL += " VARCHAR(255),";
+        }
+
     }
+
     int length = createTableSQL.length();
     createTableSQL = createTableSQL.substring(0,length-1);
     createTableSQL += ")";
@@ -54,7 +74,7 @@ public class TableService {
     //System.out.println("Table created successfully.");
     }
 
-    public Map<String, List<String>> gainMeta(String database_id) throws IllegalAccessException {
+    public Map<String, List<String>> gainMetaValue(String database_id) throws IllegalAccessException {
         List<MetaData> preData = metaDataRepo.findByDatabaseid(database_id);
 
         Map<String, List<MetaData>> metaData = new HashMap<>();
@@ -87,16 +107,67 @@ public class TableService {
         return res;
     }
 
-    public String setFields(String databaseId, String tableId, List<String> newFields){
+    public Map<String, Map<String,String>> gainMeta(String database_id) throws IllegalAccessException {
+        List<MetaData> preData = metaDataRepo.findByDatabaseid(database_id);
+
+        Map<String, List<MetaData>> metaData = new HashMap<>();
+        metaData = preData.stream()
+                .collect(Collectors.groupingBy(MetaData::getTablebelong));
+        System.out.println(metaData);
+        Map<String, List<String>> res = new HashMap<>();
+        Map<String, Map<String, String>> newres = new HashMap<>();
+
+        for(Map.Entry<String, List<MetaData>> entry : metaData.entrySet()){
+            String tablename = entry.getKey();
+            List<MetaData> valueList = entry.getValue();
+            List<String> currentFields = new ArrayList<>();
+            Map<String, String> currentFieldMap = new HashMap<>();
+
+            System.out.println("Processing table: " + tablename);
+            for (MetaData value : valueList){
+                System.out.println("Value: " + value);
+
+                Field[] fields = value.getClass().getDeclaredFields();
+
+                String currentKey = "";
+                String currentValue = "";
+
+                for(Field field : fields){
+                    field.setAccessible(true);
+                    Object fieldvalue = field.get(value);
+                    System.out.println("fieldvalue: " + fieldvalue);
+                    if(field.getName() == "fieldname"){
+                        System.out.println("current fieldname:" + fieldvalue);
+                        currentFields.add(fieldvalue.toString());
+                        currentKey = fieldvalue.toString();
+                    }
+                    if(field.getName() == "fieldtype"){
+                        System.out.println("current fieldtype:" + fieldvalue);
+                        currentFields.add(fieldvalue.toString());
+                        currentValue = fieldvalue.toString();
+                        currentFieldMap.put(currentKey,currentValue);
+                    }
+
+                }
+                res.put(tablename,currentFields);
+                newres.put(tablename,currentFieldMap);
+            }
+        }
+        return newres;
+    }
+
+    public String setFields(String databaseId, String tableId, Map<String, String> newFields){
         //create if new table
         List<String> tableNames = this.getAllTableNames();
+        System.out.println("All tablenames list: " + tableNames.toString());
         Boolean newTableFlag = Boolean.TRUE;
         for(String tableName : tableNames){
-            if(tableName == tableId){
+            if(Objects.equals(tableName, tableId)){
                 newTableFlag = Boolean.FALSE;
             }
         }
         if(newTableFlag == Boolean.TRUE){
+            System.out.println("new table! create it!!");
             createTable(tableId,newFields);
         }
 
@@ -106,24 +177,54 @@ public class TableService {
 
         //maintain metaData Table
         metaDataRepo.deleteByTablebelong(tableId);
-        for (String newField : newFields){
+
+        for(Map.Entry<String, String> entry: newFields.entrySet()){
             MetaData newRecord = new MetaData();
-            newRecord.setFieldname(newField);
+            newRecord.setFieldname(entry.getKey());
+            newRecord.setFieldtype(entry.getValue());
             newRecord.setTablebelong(tableId);
             newRecord.setDatabaseid(databaseId);
             metaDataRepo.saveAndFlush(newRecord);
         }
+//        for (String newField : newFields){
+//            MetaData newRecord = new MetaData();
+//            newRecord.setFieldname(newField);
+//            newRecord.setTablebelong(tableId);
+//            newRecord.setDatabaseid(databaseId);
+//            metaDataRepo.saveAndFlush(newRecord);
+//        }
         return "0";
     }
 
-    public String addFields(String databaseId, String tableId, String newField){
-        String sql = "ALTER TABLE " + tableId + " ADD COLUMN " + newField + " " + "VARCHAR(255)" ;
+    public String addFields(String databaseId, String tableId, String newField, String fieldType){
+
+        String sql = "ALTER TABLE " + tableId + " ADD COLUMN " + newField  ;
+
+        if(Objects.equals(fieldType, "string")){
+            sql += " VARCHAR(255)";
+        }
+
+        if(Objects.equals(fieldType, "boolean")){
+            sql += " INT";
+        }
+        if(Objects.equals(fieldType, "int")){
+            sql += " INT";
+        }
+        if(Objects.equals(fieldType, "double")){
+            sql += " DOUBLE";
+        }
+        if(Objects.equals(fieldType, "image")){
+            sql += " VARCHAR(255)";
+        }
+
+
         jdbcTemplate.execute(sql);
 
         MetaData newRecord = new MetaData();
         newRecord.setFieldname(newField);
         newRecord.setTablebelong(tableId);
         newRecord.setDatabaseid(databaseId);
+        newRecord.setFieldtype(fieldType);
         metaDataRepo.saveAndFlush(newRecord);
         return "0";
     }
@@ -162,7 +263,7 @@ public class TableService {
 
     public String setRecord(String databaseId, String tableId, String rowId, Map<String, String> payload) throws IllegalAccessException {
         //gain all field list
-        Map<String, List<String>> metaDataSet = this.gainMeta(databaseId);
+        Map<String, List<String>> metaDataSet = this.gainMetaValue(databaseId);
         System.out.println(metaDataSet);
         List<String> fieldNameList = new ArrayList<>();
         for (Map.Entry<String, List<String>> entry : metaDataSet.entrySet()) {

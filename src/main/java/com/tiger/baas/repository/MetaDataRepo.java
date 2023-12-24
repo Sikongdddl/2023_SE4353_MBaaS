@@ -19,4 +19,8 @@ public interface MetaDataRepo extends JpaRepository<MetaData,Long> {
     void deleteByTablebelong(String tablebelong);
 
     MetaData findByFieldname(String fieldname);
+
+    MetaData findDistinctFirstByFieldname(String fieldname);
+
+    MetaData findDistinctFirstByTablebelong(String tablebelong);
 }

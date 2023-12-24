@@ -16,6 +16,8 @@ public class MetaData {
     private String fieldtype;
 
     private String tablebelong;
+
+    private String primarykey;
     public long getUuid() {
         return uuid;
     }
@@ -54,5 +56,13 @@ public class MetaData {
 
     public void setTablebelong(String tablebelong) {
         this.tablebelong = tablebelong;
+    }
+
+    public String getPrimarykey() {
+        return primarykey;
+    }
+
+    public void setPrimarykey(String primarykey) {
+        this.primarykey = primarykey;
     }
 }

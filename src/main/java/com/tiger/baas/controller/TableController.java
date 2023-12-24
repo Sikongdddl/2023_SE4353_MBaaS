@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
 import javax.persistence.EntityManager;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,7 +41,8 @@ public class TableController {
         List<String> fieldList = new ArrayList<>();
         Map<String, Map<String, String>> metaData = new HashMap<>();
         metaData = tableService.gainMeta(jsonObject.getString("databaseId"));
-        return Result.success(metaData,"1","请查收您现在的Metadata");
+        return Result.successMeta("1","请查收您现在的Metadata",metaData);
+//        return Result.success(metaData,"1","请查收您现在的Metadata");
     }
 
     @PostMapping("/setFields")
@@ -142,30 +144,61 @@ public class TableController {
         String errno = synService.unSubscribe(databaseId,tableId,deviceId);
         return Result.success(errno,"成功取消订阅");
     }
-    //support a single where condition every query
-    //should we support multi-conditions query?
+    //work only when whereTargetValue is String type
     @PostMapping("query")
     public Result<List<Map<String, String>>> query(@RequestBody JSONObject jsonObject){
         String databaseId = jsonObject.getString("databaseId");
         String tableId = jsonObject.getString("tableId");
-        List<String> whereCondition = utilFunc.jsonArrayToList(jsonObject.getJSONArray("whereConditions"));
-        List<Map<String, String>> QueryResult = tableService.query(databaseId,tableId,whereCondition);
-        String errno = "0";
-        return Result.success(QueryResult, errno, "Query完毕");
+        List<Map<String, String>> whereConditions  = new ArrayList<>();
+
+        JSONArray jsonArray = jsonObject.getJSONArray("whereConditions");
+        Map<String, String> join = jsonObject.getJSONObject("join");
+
+        for(int i = 0; i < jsonArray.size(); i++){
+            JSONObject tmpjsonObject = jsonArray.getJSONObject(i);
+            Map<String, String> dataMap = new HashMap<>();
+
+            for (Object key : tmpjsonObject.keySet()) {
+                dataMap.put(key.toString(), tmpjsonObject.getString(key.toString()));
+            }
+
+            whereConditions.add(dataMap);
+        }
+
+        System.out.println(whereConditions);
+        //naive query
+        if(join.isEmpty()){
+            List<Map<String, String>> QueryResult = tableService.query(databaseId,tableId,whereConditions);
+            String errno = "0";
+            return Result.successRecord(errno,"Query完毕",QueryResult);
+        }
+        //join and query
+        else{
+            String tableId_1 = join.get("tableId_1");
+            String tableId_2 = join.get("tableId_2");
+            String fieldId_1 = join.get("fieldId_1");
+            String fieldId_2 = join.get("fieldId_2");
+
+            List<Map<String, String>> joinResult = tableService.joinAndQuery(databaseId,tableId_1,tableId_2,fieldId_1, fieldId_2,whereConditions);
+
+            String errno="0";
+            return Result.successRecord(errno,"join+Query完毕",joinResult);
+        }
+//        return Result.success(QueryResult, errno, "Query完毕");
     }
 
-    @PostMapping("join")
-    public Result<List<Map<String, String>>> join(@RequestBody JSONObject jsonObject){
-        String databaseId = jsonObject.getString("databaseId");
-        String tableId_1 = jsonObject.getString("tableId_1");
-        String tableId_2 = jsonObject.getString("tableId_2");
-        String fieldId_1 = jsonObject.getString("fieldId_1");
-        String fieldId_2 = jsonObject.getString("fieldId_2");
-
-        List<Map<String, String>> joinResult = tableService.join(databaseId,tableId_1,tableId_2,fieldId_1, fieldId_2);
-        String errno = "0";
-        return Result.success(joinResult, errno, "join完毕");
-    }
+//    @PostMapping("join")
+//    public Result<List<Map<String, String>>> join(@RequestBody JSONObject jsonObject){
+//        String databaseId = jsonObject.getString("databaseId");
+//        String tableId_1 = jsonObject.getString("tableId_1");
+//        String tableId_2 = jsonObject.getString("tableId_2");
+//        String fieldId_1 = jsonObject.getString("fieldId_1");
+//        String fieldId_2 = jsonObject.getString("fieldId_2");
+//
+//        List<Map<String, String>> joinResult = tableService.join(databaseId,tableId_1,tableId_2,fieldId_1, fieldId_2);
+//        String errno = "0";
+//        return Result.successRecord(errno,"join完毕",joinResult);
+//    }
     //return full query list and parse by frontend
     //reduce pressure of ipads server XD
 //    @PostMapping("aggregation")
@@ -174,11 +207,8 @@ public class TableController {
 
     /*
     * Todo:
-    *  test query and join
-    *  implement multi-conditions query
     *  websocket
-    *  deployment
+    *  transaction
     *  refact errno return value
-    *  deal with different database with the same table name
     * */
 }

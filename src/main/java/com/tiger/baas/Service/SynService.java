@@ -1,9 +1,14 @@
 package com.tiger.baas.Service;
 
 import com.tiger.baas.utils.RegisterBuffer;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
+import javax.websocket.server.ServerEndpoint;
+
 @Service
+@ServerEndpoint(value = "/websocket/{userId}")
+@Component
 public class SynService {
     private RegisterBuffer registerBuffer = new RegisterBuffer();
 
@@ -18,4 +23,6 @@ public class SynService {
         registerBuffer.Traverse();
         return "0";
     }
+
+
 }

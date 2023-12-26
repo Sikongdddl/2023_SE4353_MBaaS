@@ -7,7 +7,7 @@ import { MBaaS } from '../package/MBaaS';
 struct OrderList {
   @State message: string = 'Hello World'
   filterUserName:string = "";
-  filterOrderPrice:number = 0;
+  filterOrderPrice:number = undefined;
   filterRelation:string="";
   @State orders: Record<string, any>[] = [
     {
@@ -48,18 +48,108 @@ struct OrderList {
         }
       ],
       "totalPrice": 50,
+    },
+    {
+      "userName": "alice",
+      "orderNumber": "222",
+      "orderItems": [
+        {
+          "name": "高考英语 五年高考三年模拟",
+          "number": 1,
+          "singlePrice": 17.5
+        },
+        {
+          "name": "红楼梦",
+          "number": 1,
+          "singlePrice": 12.5
+        },
+        {
+          "name": "草房子",
+          "number": 1,
+          "singlePrice": 20,
+        }
+      ],
+      "totalPrice": 50,
+    },
+    {
+      "userName": "alice",
+      "orderNumber": "222",
+      "orderItems": [
+        {
+          "name": "高考英语 五年高考三年模拟",
+          "number": 1,
+          "singlePrice": 17.5
+        },
+        {
+          "name": "红楼梦",
+          "number": 1,
+          "singlePrice": 12.5
+        },
+        {
+          "name": "草房子",
+          "number": 1,
+          "singlePrice": 20,
+        }
+      ],
+      "totalPrice": 50,
     }
   ]
 
   async onPageShow(){
     console.log("order manage appear");
     let db: MBaaS.DatabaseHelper = globalThis.db;
-    db.join("orders", "orderid", "items", "orderid").get().then((records)=>{
-      console.log(JSON.stringify(records));
+    db.join("orders", "orderid", "items", "orderid").orderBy("orderid").get().then((records)=>{
+      // console.log(JSON.stringify(records));
+      let curOrderNumber = "";
+      let newOrder:Record<string, any> = {}
+      let newItems:Record<string, any>[] = [];
+      let totalPrice = 0;
+      this.orders = [];
+      for (let record of records){
+        console.log(JSON.stringify(record));
+        let data:Record<string, any> = record.data();
+        if (data["orderid"] != curOrderNumber){
+          if (curOrderNumber != ""){
+            newOrder["orderItems"] = newItems;
+            // to be fix 改成每个订单的单价和
+            totalPrice = 100.5;
+            newOrder["totalPrice"] = totalPrice;
+            console.log(JSON.stringify(newOrder));
+            this.orders.push(newOrder);
+            newOrder = {};
+            newItems = [];
+            totalPrice = 0;
+          }
+          newOrder["orderNumber"] = data["orderid"];
+          newOrder["userName"] = data["username"];
+          newOrder["orderItems"] = [];
+          newItems.push({
+            "name": data["bookname"],
+            "number": data["number"],
+            "singlePrice": data["singleprice"]
+          })
+          curOrderNumber = data["orderid"];
+        }
+        else{
+          newItems.push({
+            "name": data["bookname"],
+            "number": data["number"],
+            "singlePrice": data["singleprice"]
+          })
+
+          // totalPrice += newItems["singlePrice"];
+        }
+      }
+      newOrder["orderItems"] = newItems;
+      newOrder["totalPrice"] = totalPrice;
+      this.orders.push(newOrder);
+
     })
   }
 
   build() {
+
+
     Column(){
       Row(){
         Image($r('app.media.ic_public_back'))
@@ -121,14 +211,100 @@ struct OrderList {
         Image($r("app.media.load"))
           .height("70%")
           .margin({left:15})
-          .onClick(()=>{
-            console.log("order manage appear");
+          .onClick(async ()=>{
+            console.log("order filter");
             let db: MBaaS.DatabaseHelper = globalThis.db;
+            let records;
+            if (this.filterOrderPrice != undefined && this.filterRelation != ""){
+              if (this.filterUserName == ""){
+                records = await db.join("orders", "orderid", "items", "orderid")
+                  .where("totalprice",this.filterRelation,this.filterOrderPrice)
+                  .orderBy("orderid")
+                  .get();
+              }
+              else{
+                records = await db.join("orders", "orderid", "items", "orderid")
+                  .where("username", "=", this.filterUserName)
+                  .where("totalprice", this.filterRelation, this.filterOrderPrice)
+                  .orderBy("orderid")
+                  .get();
+              }
+            }
+            else{
+              if (this.filterUserName == ""){
+                records = await db.join("orders", "orderid", "items", "orderid")
+                  .orderBy("orderid")
+                  .get();
+              }
+              else{
+                records = await db.join("orders", "orderid", "items", "orderid")
+                  .where("username", "=", this.filterUserName)
+                  .orderBy("orderid")
+                  .get();
+              }
+            }
 
+            let curOrderNumber = "";
+            let newOrder:Record<string, any> = {}
+            let newItems:Record<string, any>[] = [];
+            let totalPrice = 0;
+            this.orders = [];
+            for (let record of records){
+              console.log(JSON.stringify(record));
+              let data:Record<string, any> = record.data();
+              if (data["orderid"] != curOrderNumber){
+                if (curOrderNumber != ""){
+                  newOrder["orderItems"] = newItems;
+                  // to be fix 改成单价和
+                  totalPrice = 100.5;
+                  newOrder["totalPrice"] = totalPrice;
+                  console.log(JSON.stringify(newOrder));
+                  this.orders.push(newOrder);
+                  newOrder = {};
+                  newItems = [];
+                  totalPrice = 0;
+                }
+                newOrder["orderNumber"] = data["orderid"];
+                newOrder["userName"] = data["username"];
+                newOrder["orderItems"] = [];
+                newItems.push({
+                  "name": data["bookname"],
+                  "number": data["number"],
+                  "singlePrice": data["singleprice"]
+                })
+                curOrderNumber = data["orderid"];
+              }
+              else{
+                newItems.push({
+                  "name": data["bookname"],
+                  "number": data["number"],
+                  "singlePrice": data["singleprice"]
+                })
+
+                // totalPrice += newItems["singlePrice"];
+              }
+            }
+            newOrder["orderItems"] = newItems;
+            newOrder["totalPrice"] = totalPrice;
+            this.orders.push(newOrder);
           })
 
 
-      }.height(30).width("100%")
+      }.height(33).width("100%")
+
+      Column(){
+        Text("订单价格统计：")
+          .alignSelf(ItemAlign.Start)
+          .margin({left:5})
+        Row(){
+          Text("总和：").layoutWeight(1)
+          Text("平均：").layoutWeight(1)
+          Text("最大：").layoutWeight(1)
+          Text("最小：").layoutWeight(1)
+        }.height(25).width("100%")
+        .margin({top:5, left:6})
+      }.width("100%").margin({top:15})
+
 
       // 表头
       Row(){
@@ -188,11 +364,9 @@ struct OrderList {
             }
           })
         }
-
-
-
-
       }
+
+
 
 
 

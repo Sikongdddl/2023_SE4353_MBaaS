@@ -728,6 +728,7 @@ const serverUrl:string = "47.94.130.65:8081";
               "databaseId": this.databaseId,
               "tableId": this.tableId,
               "whereConditions": this.conditions,
+              "join": this.join,
             },
           }
           , (err, data) => {

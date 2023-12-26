@@ -1,0 +1,41 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\Administrator.DESKTOP-72VUBCO\\.ohos\\config\\openharmony\\auto_ohos_default_MBaaS_com.example.mbaas.cer",
+          "storePassword": "0000001AE6A83944015BA367561472DCE2CE3C0F221F1068CE4E268547E8B281DC3AA4D141B9648DB945",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001AF81C9B137AC486DFC5F5D48AEACFC7BDD98273E6F2A4E1C9BCD76036B434D9B628430E347632",
+          "profile": "C:\\Users\\Administrator.DESKTOP-72VUBCO\\.ohos\\config\\openharmony\\auto_ohos_default_MBaaS_com.example.mbaas.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\Administrator.DESKTOP-72VUBCO\\.ohos\\config\\openharmony\\auto_ohos_default_MBaaS_com.example.mbaas.p12"
+        }
+      }
+    ],
+    "compileSdkVersion": 9,
+    "compatibleSdkVersion": 9,
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}

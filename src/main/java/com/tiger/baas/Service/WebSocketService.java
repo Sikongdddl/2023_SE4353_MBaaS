@@ -9,8 +9,8 @@ import javax.websocket.*;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
 
 @ServerEndpoint(value = "/websocket/{userId}")
 @Component
@@ -105,24 +105,6 @@ public class WebSocketService {
             throw new RuntimeException(e.getMessage());
         }
     }
-    /**
-     //     * 向指定客户端发送消息(对象的形式)
-     //     * @param userId
-     //     * @param object
-     //     */
-//
-//    public static void sendMessage(String userId,Object object){
-//        try {
-//            WebSocketClient webSocketClient = webSocketMap.get(userId);
-//            if(webSocketClient!=null){
-//                webSocketClient.getSessendObject(object);
-//            }
-//        } catch (IOException | EncodeException e) {
-//            e.printStackTrace();
-//            throw new RuntimeException(e.getMessage());
-//        }
-//    }
-
 
     public String getUserId() {
         return userId;

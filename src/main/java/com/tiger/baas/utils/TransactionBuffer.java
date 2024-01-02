@@ -1,0 +1,88 @@
+package com.tiger.baas.utils;
+
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.*;
+
+public class TransactionBuffer {
+    public Map<String, List<String>> transaction2Tables = new HashMap<>();
+
+    public Map<String, String> transactionStatus = new HashMap<>();
+
+    public Map<String, Integer> transactionVersion = new HashMap<>();
+
+
+    public TransactionBuffer(){
+
+    }
+
+    public int addTransaction(String transactionId){
+        List<String> tableList = new ArrayList<>();
+        transaction2Tables.put(transactionId,tableList);
+        setStatus(transactionId,"normal");
+        transactionVersion.put(transactionId,0);
+        return 0;
+    }
+
+    //status normal: nothing wrong
+    //status fail: transaction failed
+    public String getStatus(String transactionId){
+        for(Map.Entry<String, String> entry : transactionStatus.entrySet()){
+            if(Objects.equals(entry.getKey(), transactionId)){
+                return entry.getValue();
+            }
+        }
+        return "NoSuchTransactionId";
+    }
+
+    public Integer getVersion(String transactionId){
+        for(Map.Entry<String, Integer> entry : transactionVersion.entrySet()){
+            if(Objects.equals(entry.getKey(), transactionId)){
+                return entry.getValue();
+            }
+        }
+        return -1;
+    }
+
+    public void setVersionWhenFail(String transactionId){
+        for(Map.Entry<String, Integer> entry : transactionVersion.entrySet()){
+            if(Objects.equals(entry.getKey(), transactionId)){
+                Integer currentVersion = entry.getValue();
+                entry.setValue(currentVersion + 1);
+            }
+        }
+    }
+    public void setStatus(String transactionId, String status){
+        for(Map.Entry<String, String> entry : transactionStatus.entrySet()){
+            if(Objects.equals(entry.getKey(), transactionId)){
+                entry.setValue(status);
+                if(Objects.equals(status, "fail")){
+                    setVersionWhenFail(transactionId);
+                }
+            }
+        }
+    }
+    //used when a table was read by transaction
+    //maintain a correct map from transactionId to List<tableId>
+    public void addTransactionTable(String transactionId, String tableId){
+        for(Map.Entry<String, List<String>> entry : transaction2Tables.entrySet()){
+            if(Objects.equals(entry.getKey(), transactionId)){
+                List<String> curTableList = entry.getValue();
+                curTableList.add(tableId);
+                entry.setValue(curTableList);
+            }
+        }
+    }
+
+    public void setTableDanger(String tableId){
+        for(Map.Entry<String, List<String>> entry : transaction2Tables.entrySet()){
+            List<String> curTableList = entry.getValue();
+            String curTransactionId = entry.getKey();
+            for(String curTableId : curTableList){
+                if(Objects.equals(curTableId, tableId)){
+                    this.setStatus(curTransactionId,"fail");
+                }
+            }
+        }
+    }
+}

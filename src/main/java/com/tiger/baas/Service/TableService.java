@@ -72,8 +72,6 @@ public class TableService {
     System.out.println(createTableSQL);
 
     jdbcTemplate.execute(createTableSQL);
-
-    //System.out.println("Table created successfully.");
     }
 
     public Map<String, List<String>> gainMetaValue(String database_id) throws IllegalAccessException {
@@ -160,6 +158,11 @@ public class TableService {
     }
 
     public String setFields(String databaseId, String tableId, Map<String, String> newFields){
+        String errno = "0";
+        //0 means success without create new table
+        //1 means success with new table created
+        //-1 means error
+
         //create if new table
         String realTableName = utilFunc.convertTableAndDbToTableDb(tableId, databaseId);
         List<String> tableNames = this.getAllTableNames();
@@ -180,6 +183,7 @@ public class TableService {
             jdbcTemplate.execute(sql);
 
             createTable(tableId,newFields);
+            errno = "1";
         }
 
         //else modify field name
@@ -202,7 +206,8 @@ public class TableService {
             }
             metaDataRepo.saveAndFlush(newRecord);
         }
-        return "0";
+
+        return errno;
     }
 
     public String addFields(String databaseId, String tableId, String newField, String fieldType){
@@ -257,7 +262,6 @@ public class TableService {
 
         for (Map.Entry<String, String> entry : payload.entrySet()) {
             String columnName = entry.getKey();
-            String columnValue = entry.getValue();
 
             sqlBuilder.append(columnName).append(", ");
             valuesBuilder.append(":").append(columnName).append(", ");
@@ -310,7 +314,6 @@ public class TableService {
 
         for (Map.Entry<String, String> entry : payload.entrySet()) {
             String columnName = entry.getKey();
-            String columnValue = entry.getValue();
             sqlBuilder.append(columnName).append(" = :").append(columnName).append(", ");
         }
 
@@ -336,7 +339,6 @@ public class TableService {
 
         for (Map.Entry<String, String> entry : payload.entrySet()) {
             String columnName = entry.getKey();
-            String columnValue = entry.getValue();
 
             sqlBuilder.append(columnName).append(" = :").append(columnName).append(", ");
         }
@@ -366,7 +368,7 @@ public class TableService {
         return "0";
     }
 
-    public List<Map<String, String>> query(String databaseId, String tableId, List<Map<String, String>> whereConditions){
+    public List<Map<String, Object>> query(String databaseId, String tableId, List<Map<String, String>> whereConditions){
         String realTableName = utilFunc.convertTableAndDbToTableDb(tableId, databaseId);
         String sql = "";
         String whereField = "";
@@ -404,46 +406,49 @@ public class TableService {
 
         List<Map<String, Object>> resultList = jdbcTemplate.queryForList(sql);
 
-        List<Map<String, String>> res = utilFunc.convertListMapsToStringValues(resultList);
-
-        return res;
+        return resultList;
+        //List<Map<String, String>> res = utilFunc.convertListMapsToStringValues(resultList);
+        //return res;
     }
 
-    public List<Map<String, String>> joinAndQuery(String databaseId, String tableId_1, String tableId_2, String fieldId_1, String fieldId_2, List<Map<String, String>> whereConditions){
+    public List<Map<String, Object>> joinAndQuery(String databaseId, String tableId_1, String tableId_2, String fieldId_1, String fieldId_2, List<Map<String, String>> whereConditions){
         String realTableName = utilFunc.convertTableAndDbToTableDb(tableId_1, databaseId);
         String realTableName1 = utilFunc.convertTableAndDbToTableDb(tableId_2, databaseId);
         String sql = "SELECT t1.*, t2.* " +  " FROM " + realTableName + " t1 " + "INNER JOIN " + realTableName1 + " t2 ON t1." + fieldId_1 + " = t2." + fieldId_2;
-        sql +=  " WHERE ";
-        String whereField = "";
-        String fieldType = "";
-        for(int i = 0; i < whereConditions.size(); ++i){
-            whereField = whereConditions.get(i).get("whereField");
-            sql += whereField;
-            sql += " ";
-            //System.out.println("WhereField: " + whereField);
-            MetaData metaEntry = metaDataRepo.findDistinctFirstByFieldname(whereField);
-            fieldType = metaEntry.getFieldtype();
-            System.out.println("fieldType: " + metaEntry.getFieldtype());
-            sql += whereConditions.get(i).get("whereRelation");
-            sql += " ";
-            if(Objects.equals(fieldType, "string")){
-                sql += "'";
-                sql += whereConditions.get(i).get("whereTargetValue");
-                sql += "'";
-            }
-            else{
-                sql += whereConditions.get(i).get("whereTargetValue");
-            }
-            if(i != whereConditions.size() - 1){
-                sql += " AND ";
+        if(!whereConditions.isEmpty()){
+            sql +=  " WHERE ";
+            String whereField = "";
+            String fieldType = "";
+            for(int i = 0; i < whereConditions.size(); ++i){
+                whereField = whereConditions.get(i).get("whereField");
+                sql += whereField;
+                sql += " ";
+                //System.out.println("WhereField: " + whereField);
+                MetaData metaEntry = metaDataRepo.findDistinctFirstByFieldname(whereField);
+                fieldType = metaEntry.getFieldtype();
+                System.out.println("fieldType: " + metaEntry.getFieldtype());
+                sql += whereConditions.get(i).get("whereRelation");
+                sql += " ";
+                if(Objects.equals(fieldType, "string")){
+                    sql += "'";
+                    sql += whereConditions.get(i).get("whereTargetValue");
+                    sql += "'";
+                }
+                else{
+                    sql += whereConditions.get(i).get("whereTargetValue");
+                }
+                if(i != whereConditions.size() - 1){
+                    sql += " AND ";
+                }
             }
         }
+
         System.out.println(sql);
         List<Map<String, Object>> resultList = jdbcTemplate.queryForList(sql);
 
-        List<Map<String, String>> res = utilFunc.convertListMapsToStringValues(resultList);
-
-        return res;
+        return resultList;
+        //List<Map<String, String>> res = utilFunc.convertListMapsToStringValues(resultList);
+        //return res;
     }
 
 

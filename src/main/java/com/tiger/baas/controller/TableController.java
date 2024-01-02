@@ -1,48 +1,43 @@
 package com.tiger.baas.controller;
-
-//import com.tiger.baas.Service.SynService;
 import com.tiger.baas.Service.SynService;
 import com.tiger.baas.Service.TableService;
-import com.tiger.baas.utils.RegisterBuffer;
 import com.tiger.baas.utils.Result;
+import com.tiger.baas.utils.TransactionBuffer;
 import com.tiger.baas.utils.UtilFunc;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-
-
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
-import javax.persistence.EntityManager;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 public class TableController {
 
+    private UtilFunc utilFunc = new UtilFunc();
+
+    private TransactionBuffer transactionBuffer;
+
+    private boolean TransactionDEBUG;
+
     @Resource
     private TableService tableService;
-
-    private UtilFunc utilFunc = new UtilFunc();
 
     @Resource
     private SynService synService;
 
+
+    public TableController(){
+        this.TransactionDEBUG = false;
+    }
     @PostMapping("/synMetadata")
     public Result<Map<String, Map<String, String>>> synMetadata(@RequestBody JSONObject jsonObject) throws IllegalAccessException {
         List<String> fieldList = new ArrayList<>();
         Map<String, Map<String, String>> metaData = new HashMap<>();
         metaData = tableService.gainMeta(jsonObject.getString("databaseId"));
         return Result.successMeta("1","请查收您现在的Metadata",metaData);
-//        return Result.success(metaData,"1","请查收您现在的Metadata");
     }
 
     @PostMapping("/setFields")
@@ -56,6 +51,12 @@ public class TableController {
 
         System.out.println(databaseId + tableId + newFieldsMap.toString());
         String errno = tableService.setFields(databaseId,tableId,newFieldsMap);
+        if(Objects.equals(errno, "1")){
+            synService.sendMessageField(synService.generatePayloadField(databaseId, SynService.changeType.newTable,tableId,"","","",""));
+        }
+        if(this.TransactionDEBUG){
+            this.transactionBuffer.setTableDanger(tableId);
+        }
         return Result.success(errno,"覆盖设置字段成功");
     }
 
@@ -66,6 +67,10 @@ public class TableController {
         String newField = jsonObject.getString("newField");
         String fieldType = jsonObject.getString("fieldType");
         String errno = tableService.addFields(databaseId, tableId, newField,fieldType);
+        synService.sendMessageField(synService.generatePayloadField(databaseId, SynService.changeType.newField,tableId,newField,fieldType,"",""));
+        if(this.TransactionDEBUG){
+            this.transactionBuffer.setTableDanger(tableId);
+        }
         return Result.success(errno,"添加表字段成功");
     }
 
@@ -75,6 +80,10 @@ public class TableController {
         String tableId = jsonObject.getString("tableId");
         String deleteField = jsonObject.getString("deleteField");
         String errno = tableService.deleteFields(databaseId, tableId, deleteField);
+        synService.sendMessageField(synService.generatePayloadField(databaseId, SynService.changeType.deleteField,tableId,deleteField,"","",""));
+        if(this.TransactionDEBUG){
+            this.transactionBuffer.setTableDanger(tableId);
+        }
         return Result.success(errno,"删除表字段成功");
     }
 
@@ -85,6 +94,11 @@ public class TableController {
         Map<String, String> payload = jsonObject.getJSONObject("payload");
         System.out.println("payload:"+payload);
         String errno = tableService.addRecord(databaseId, tableId,payload);
+
+        synService.sendMessageContent(synService.generatePayloadContentHead(databaseId,tableId),synService.generatePayloadContentBody(SynService.changeType.add,payload,null).get(0));
+        if(this.TransactionDEBUG){
+            this.transactionBuffer.setTableDanger(tableId);
+        }
         return Result.success(errno,"添加表字段成功");
 
     }
@@ -92,18 +106,18 @@ public class TableController {
     //set null at default fields
     //insert null value brings strange bug
     //so String "nullValue" infers to null value
-    //Please Take Care!
+    //TAKE CARE!!!
     @PostMapping("/setRecord")
-//    public Result setRecord(@RequestParam String databaseId, @RequestParam String tableId, @RequestParam String rowId, @RequestParam Map<String, String> payload){
-//        String errno = tableService.setRecord(databaseId, tableId, rowId, payload);
-//        return Result.success(errno,"成功设置一条记录");
-//    }
     public Result setRecord(@RequestBody JSONObject jsonObject) throws IllegalAccessException {
         String databaseId = jsonObject.getString("databaseId");
         String tableId = jsonObject.getString("tableId");
         String rowId = jsonObject.getString("rowId");
         Map<String, String> payload = jsonObject.getJSONObject("payload");
         String errno = tableService.setRecord(databaseId, tableId, rowId, payload);
+        synService.sendMessageContent(synService.generatePayloadContentHead(databaseId,tableId),synService.generatePayloadContentBody(SynService.changeType.modify,payload,null).get(0));
+        if(this.TransactionDEBUG){
+            this.transactionBuffer.setTableDanger(tableId);
+        }
         return Result.success(errno,"成功设置一条记录");
     }
 
@@ -115,6 +129,10 @@ public class TableController {
         String rowId = jsonObject.getString("rowId");
         Map<String, String> payload = jsonObject.getJSONObject("payload");
         String errno = tableService.updateRecord(databaseId, tableId, rowId, payload);
+        synService.sendMessageContent(synService.generatePayloadContentHead(databaseId,tableId),synService.generatePayloadContentBody(SynService.changeType.modify,payload,null).get(0));
+        if(this.TransactionDEBUG){
+            this.transactionBuffer.setTableDanger(tableId);
+        }
         return Result.success(errno,"成功更新一条记录");
     }
 
@@ -124,6 +142,10 @@ public class TableController {
         String tableId = jsonObject.getString("tableId");
         String rowId = jsonObject.getString("rowId");
         String errno = tableService.deleteRecord(databaseId, tableId, rowId);
+        synService.sendMessageContent(synService.generatePayloadContentHead(databaseId,tableId),synService.generatePayloadContentBody(SynService.changeType.delete,null,null).get(0));
+        if(this.TransactionDEBUG){
+            this.transactionBuffer.setTableDanger(tableId);
+        }
         return Result.success(errno,"成功删除一条记录");
     }
 
@@ -144,9 +166,10 @@ public class TableController {
         String errno = synService.unSubscribe(databaseId,tableId,deviceId);
         return Result.success(errno,"成功取消订阅");
     }
-    //work only when whereTargetValue is String type
+
+
     @PostMapping("query")
-    public Result<List<Map<String, String>>> query(@RequestBody JSONObject jsonObject){
+    public Result<List<Map<String, Object>>> query(@RequestBody JSONObject jsonObject){
         String databaseId = jsonObject.getString("databaseId");
         String tableId = jsonObject.getString("tableId");
         List<Map<String, String>> whereConditions  = new ArrayList<>();
@@ -168,7 +191,7 @@ public class TableController {
         System.out.println(whereConditions);
         //naive query
         if(join.isEmpty()){
-            List<Map<String, String>> QueryResult = tableService.query(databaseId,tableId,whereConditions);
+            List<Map<String, Object>> QueryResult = tableService.query(databaseId,tableId,whereConditions);
             String errno = "0";
             return Result.successRecord(errno,"Query完毕",QueryResult);
         }
@@ -179,36 +202,16 @@ public class TableController {
             String fieldId_1 = join.get("fieldId_1");
             String fieldId_2 = join.get("fieldId_2");
 
-            List<Map<String, String>> joinResult = tableService.joinAndQuery(databaseId,tableId_1,tableId_2,fieldId_1, fieldId_2,whereConditions);
+            List<Map<String, Object>> joinResult = tableService.joinAndQuery(databaseId,tableId_1,tableId_2,fieldId_1, fieldId_2,whereConditions);
 
             String errno="0";
             return Result.successRecord(errno,"join+Query完毕",joinResult);
         }
-//        return Result.success(QueryResult, errno, "Query完毕");
     }
 
-//    @PostMapping("join")
-//    public Result<List<Map<String, String>>> join(@RequestBody JSONObject jsonObject){
-//        String databaseId = jsonObject.getString("databaseId");
-//        String tableId_1 = jsonObject.getString("tableId_1");
-//        String tableId_2 = jsonObject.getString("tableId_2");
-//        String fieldId_1 = jsonObject.getString("fieldId_1");
-//        String fieldId_2 = jsonObject.getString("fieldId_2");
-//
-//        List<Map<String, String>> joinResult = tableService.join(databaseId,tableId_1,tableId_2,fieldId_1, fieldId_2);
-//        String errno = "0";
-//        return Result.successRecord(errno,"join完毕",joinResult);
-//    }
-    //return full query list and parse by frontend
-    //reduce pressure of ipads server XD
-//    @PostMapping("aggregation")
-//    public Result<List<Map<String, String>>> aggregation(@RequestBody JSONObject jsonObject){
-//    }
 
     /*
     * Todo:
-    *  websocket
-    *  transaction
     *  refact errno return value
     * */
 }

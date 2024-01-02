@@ -16,10 +16,10 @@ public class WebSocketConfig {
      * 服务器节点
      * @return
      */
-//    @Bean
-//    public ServerEndpointExporter serverEndpointExporter() {
-//        log.info("启动 WebSocket ...");
-//        return new ServerEndpointExporter();
-//    }
+    @Bean
+    public ServerEndpointExporter serverEndpointExporter() {
+        log.info("启动 WebSocket ...");
+        return new ServerEndpointExporter();
+    }
 
 }

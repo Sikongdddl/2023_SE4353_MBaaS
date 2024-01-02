@@ -10,9 +10,14 @@ public class Result<T> {
     private String statusCode;
     @JsonProperty(value = "errMessage")
     private String errMessage;
+    @JsonProperty(value = "transactionId")
+    private String transactionId;
+    @JsonProperty(value = "transactionVersion")
+    private int transactionVersion;
+
 
     private Map<String, Map<String, String>> metaData;
-    private List<Map<String, String>> records;
+    private List<Map<String, Object>> records;
 
     public String getStatusCode() {
         return statusCode;
@@ -38,12 +43,28 @@ public class Result<T> {
         this.metaData = metaData;
     }
 
-    public List<Map<String, String>> getRecords() {
+    public List<Map<String, Object>> getRecords() {
         return records;
     }
 
-    public void setRecords(List<Map<String, String>> records) {
+    public void setRecords(List<Map<String, Object>> records) {
         this.records = records;
+    }
+
+    public String getTransactionId() {
+        return transactionId;
+    }
+
+    public void setTransactionId(String transationId) {
+        this.transactionId = transationId;
+    }
+
+    public int getTransactionVersion() {
+        return transactionVersion;
+    }
+
+    public void setTransactionVersion(int transationVersion) {
+        this.transactionVersion = transationVersion;
     }
 
     public Result() {
@@ -72,7 +93,7 @@ public class Result<T> {
         return result;
     }
 
-    public static Result successRecord(String statusCode, String errMessage, List<Map<String, String>> records){
+    public static Result successRecord(String statusCode, String errMessage, List<Map<String, Object>> records){
         Result result = new Result();
         result.setStatusCode(statusCode);
         result.setErrMessage(errMessage);
@@ -80,12 +101,20 @@ public class Result<T> {
         return result;
     }
 
-
-
-    public static Result error(String statusCode, String errMessage) {
+    public static Result successTransactionCreate(String statusCode, String errMessage, String transationId, int transationVersion){
         Result result = new Result();
         result.setStatusCode(statusCode);
         result.setErrMessage(errMessage);
+        result.setTransactionId(transationId);
+        result.setTransactionVersion(transationVersion);
+        return result;
+    }
+
+    public static Result error(String statusCode, String errMessage, int transactionversion) {
+        Result result = new Result();
+        result.setStatusCode(statusCode);
+        result.setErrMessage(errMessage);
+        result.setTransactionVersion(transactionversion);
         return result;
     }
 }

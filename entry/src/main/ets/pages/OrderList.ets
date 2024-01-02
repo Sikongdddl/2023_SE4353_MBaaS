@@ -7,7 +7,7 @@ import { MBaaS } from '../package/MBaaS';
 struct OrderList {
   @State message: string = 'Hello World'
   filterUserName:string = "";
-  filterOrderPrice:number = undefined;
+  filterOrderPrice:string = "";
   filterRelation:string="";
   @State orders: Record<string, any>[] = [
     {
@@ -51,7 +51,7 @@ struct OrderList {
     },
     {
       "userName": "alice",
-      "orderNumber": "222",
+      "orderNumber": "333",
       "orderItems": [
         {
           "name": "高考英语 五年高考三年模拟",
@@ -73,7 +73,7 @@ struct OrderList {
     },
     {
       "userName": "alice",
-      "orderNumber": "222",
+      "orderNumber": "444",
       "orderItems": [
         {
           "name": "高考英语 五年高考三年模拟",
@@ -93,58 +93,83 @@ struct OrderList {
       ],
       "totalPrice": 50,
     }
-  ]
+  ];
+  @State sum:number = 0;
+  @State average:number = 0;
+  @State max:number = 0;
+  @State min:number = 0;
+
 
   async onPageShow(){
     console.log("order manage appear");
     let db: MBaaS.DatabaseHelper = globalThis.db;
-    db.join("orders", "orderid", "items", "orderid").orderBy("orderid").get().then((records)=>{
-      // console.log(JSON.stringify(records));
-      let curOrderNumber = "";
-      let newOrder:Record<string, any> = {}
-      let newItems:Record<string, any>[] = [];
-      let totalPrice = 0;
-      this.orders = [];
-      for (let record of records){
-        console.log(JSON.stringify(record));
-        let data:Record<string, any> = record.data();
-        if (data["orderid"] != curOrderNumber){
-          if (curOrderNumber != ""){
-            newOrder["orderItems"] = newItems;
-            // to be fix 改成每个订单的单价和
-            totalPrice = 100.5;
-            newOrder["totalPrice"] = totalPrice;
-            console.log(JSON.stringify(newOrder));
-            this.orders.push(newOrder);
-            newOrder = {};
-            newItems = [];
-            totalPrice = 0;
-          }
-          newOrder["orderNumber"] = data["orderid"];
-          newOrder["userName"] = data["username"];
-          newOrder["orderItems"] = [];
-          newItems.push({
-            "name": data["bookname"],
-            "number": data["number"],
-            "singlePrice": data["singleprice"]
-          })
-          curOrderNumber = data["orderid"];
+    let records = await db.join("orders", "orderid", "items", "orderid").orderBy("orderid").get();
+    let curOrderNumber = "";
+    let newOrder:Record<string, any> = {}
+    let newItems:Record<string, any>[] = [];
+    let totalPrice = 0;
+    this.orders = [];
+    for (let record of records){
+      console.log(JSON.stringify(record));
+      let data:Record<string, any> = record.data();
+      if (data["orderid"] != curOrderNumber){
+        if (curOrderNumber != ""){
+          newOrder["orderItems"] = newItems;
+          console.log(totalPrice.toString());
+          newOrder["totalPrice"] = totalPrice;
+          console.log(JSON.stringify(newOrder));
+          this.orders.push(newOrder);
+          newOrder = {};
+          newItems = [];
+          totalPrice = 0;
         }
-        else{
-          newItems.push({
-            "name": data["bookname"],
-            "number": data["number"],
-            "singlePrice": data["singleprice"]
-          })
-
-          // totalPrice += newItems["singlePrice"];
-        }
+        newOrder["orderNumber"] = data["orderid"];
+        newOrder["userName"] = data["username"];
+        newOrder["orderItems"] = [];
+        newItems.push({
+          "name": data["bookname"],
+          "number": data["number"],
+          "singlePrice": data["singleprice"]
+        })
+        curOrderNumber = data["orderid"];
+        totalPrice += data["singleprice"] * data["number"];
+        console.log(JSON.stringify(data["singleprice"]));
+        console.log(JSON.stringify(data["number"]));
+        console.log(totalPrice.toString());
       }
-      newOrder["orderItems"] = newItems;
-      newOrder["totalPrice"] = totalPrice;
-      this.orders.push(newOrder);
+      else{
+        newItems.push({
+          "name": data["bookname"],
+          "number": data["number"],
+          "singlePrice": data["singleprice"]
+        })
 
-    })
+        totalPrice += data["singleprice"] * data["number"];
+        console.log(JSON.stringify(data["singleprice"]));
+        console.log(JSON.stringify(data["number"]));
+        console.log(totalPrice.toString());
+      }
+    }
+    newOrder["orderItems"] = newItems;
+    newOrder["totalPrice"] = totalPrice;
+    this.orders.push(newOrder);
+
+    let res_sum = await db.table("orders").aggregation("totalprice", MBaaS.AGGREGATION_SUM).get();
+    this.sum = res_sum.pop().data()["sum"];
+
+    let res_aver = await db.table("orders").aggregation("totalprice", MBaaS.AGGREGATION_AVERAGE).get();
+    this.average = res_aver.pop().data()["average"];
+
+    let res_max = await db.table("orders").aggregation("totalprice", MBaaS.AGGREGATION_MAX).get();
+    this.max = res_max.pop().data()["max"]
+
+    let res_min = await db.table("orders").aggregation("totalprice", MBaaS.AGGREGATION_MIN).get();
+    this.min = res_min.pop().data()["min"]
+
+    // db.join("orders", "orderid", "items", "orderid").orderBy("orderid").get().then((records)=>{
+    //   // console.log(JSON.stringify(records));
+    //
+    // })
   }
 
   build() {
@@ -205,7 +230,7 @@ struct OrderList {
           .width("20%")
           .height("100%")
           .onChange((value)=>{
-            this.filterOrderPrice = parseFloat(value);
+            this.filterOrderPrice = value;
           })
 
         Image($r("app.media.load"))
@@ -213,30 +238,37 @@ struct OrderList {
           .margin({left:15})
           .onClick(async ()=>{
             console.log("order filter");
+            console.log(this.filterOrderPrice.toString())
+            console.log(this.filterRelation)
+            console.log(this.filterUserName)
             let db: MBaaS.DatabaseHelper = globalThis.db;
             let records;
-            if (this.filterOrderPrice != undefined && this.filterRelation != ""){
+            if (this.filterOrderPrice != "" && this.filterRelation != ""){
               if (this.filterUserName == ""){
+                console.log("aaa")
                 records = await db.join("orders", "orderid", "items", "orderid")
-                  .where("totalprice",this.filterRelation,this.filterOrderPrice)
+                  .where("totalprice",this.filterRelation,parseFloat(this.filterOrderPrice))
                   .orderBy("orderid")
                   .get();
               }
               else{
+                console.log("bbb")
                 records = await db.join("orders", "orderid", "items", "orderid")
                   .where("username", "=", this.filterUserName)
-                  .where("totalprice", this.filterRelation, this.filterOrderPrice)
+                  .where("totalprice", this.filterRelation, parseFloat(this.filterOrderPrice))
                   .orderBy("orderid")
                   .get();
               }
             }
             else{
+              console.log("ccc")
               if (this.filterUserName == ""){
                 records = await db.join("orders", "orderid", "items", "orderid")
                   .orderBy("orderid")
                   .get();
               }
               else{
+                console.log("ddd")
                 records = await db.join("orders", "orderid", "items", "orderid")
                   .where("username", "=", this.filterUserName)
                   .orderBy("orderid")
@@ -249,14 +281,18 @@ struct OrderList {
             let newItems:Record<string, any>[] = [];
             let totalPrice = 0;
             this.orders = [];
+            console.log("233333333333333")
+            console.log(JSON.stringify((records)));
             for (let record of records){
+              console.log("here")
               console.log(JSON.stringify(record));
               let data:Record<string, any> = record.data();
               if (data["orderid"] != curOrderNumber){
                 if (curOrderNumber != ""){
                   newOrder["orderItems"] = newItems;
                   // to be fix 改成单价和
-                  totalPrice = 100.5;
+                  // totalPrice = 100.5;
+                  console.log(totalPrice.toString());
                   newOrder["totalPrice"] = totalPrice;
                   console.log(JSON.stringify(newOrder));
                   this.orders.push(newOrder);
@@ -273,6 +309,7 @@ struct OrderList {
                   "singlePrice": data["singleprice"]
                 })
                 curOrderNumber = data["orderid"];
+                totalPrice += data["singleprice"] * data["number"];
               }
               else{
                 newItems.push({
@@ -281,12 +318,24 @@ struct OrderList {
                   "singlePrice": data["singleprice"]
                 })
 
-                // totalPrice += newItems["singlePrice"];
+                totalPrice += data["singleprice"] * data["number"];
               }
             }
             newOrder["orderItems"] = newItems;
             newOrder["totalPrice"] = totalPrice;
             this.orders.push(newOrder);
+
+            // let res_sum = await db.table("orders").aggregation("totalprice", MBaaS.AGGREGATION_SUM).get();
+            // this.sum = res_sum.pop().data()["sum"];
+            //
+            // let res_aver = await db.table("orders").aggregation("totalprice", MBaaS.AGGREGATION_AVERAGE).get();
+            // this.average = res_aver.pop().data()["average"];
+            //
+            // let res_max = await db.table("orders").aggregation("totalprice", MBaaS.AGGREGATION_MAX).get();
+            // this.max = res_max.pop().data()["max"]
+            //
+            // let res_min = await db.table("orders").aggregation("totalprice", MBaaS.AGGREGATION_MIN).get();
+            // this.min = res_min.pop().data()["min"]
           })
 
 
@@ -297,12 +346,15 @@ struct OrderList {
           .alignSelf(ItemAlign.Start)
           .margin({left:5})
         Row(){
-          Text("总和：").layoutWeight(1)
-          Text("平均：").layoutWeight(1)
-          Text("最大：").layoutWeight(1)
-          Text("最小：").layoutWeight(1)
-        }.height(25).width("100%")
-        .margin({top:5, left:6})
+          Text("总和：" + JSON.stringify(this.sum)).layoutWeight(1)
+          Text("平均：" + JSON.stringify(this.average)).layoutWeight(1)
+        }.height(25).width("70%")
+        .margin({top:5, left:"15%", right:"15%"})
+        Row(){
+          Text("最大：" + JSON.stringify(this.max)).layoutWeight(1)
+          Text("最小：" + JSON.stringify(this.min)).layoutWeight(1)
+        }.height(25).width("70%")
+        .margin({top:5, left:"15%", right:"15%"})
       }.width("100%").margin({top:15})
 
 

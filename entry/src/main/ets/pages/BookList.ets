@@ -19,23 +19,41 @@ struct BookList {
     //   "image": "http://img3m6.ddimg.cn/31/22/23828836-1_w_8.jpg"
     // }
   ];
+  unSubscribe;
   async onPageShow(){
     console.log("book list appear");
     let db: MBaaS.DatabaseHelper = globalThis.db;
     this.books = [];
-    db.table("book").get().then((records) => {
-      console.log(JSON.stringify(records));
-      for (let record of records){
-        let data:Record<string, any> = record.data();
-        let newBook:Record<string, any> = {}
-        newBook["name"] = data["name"];
-        newBook["price"] = data["price"];
-        newBook["count"] = data["count"];
-        newBook["image"] = data["image"];
-        this.books.push(newBook);
-        console.log(JSON.stringify(newBook));
-      }
-    })
+    let records = await db.table("book").get();
+    console.log(JSON.stringify(records));
+    for (let record of records){
+      let data:Record<string, any> = record.data();
+      let newBook:Record<string, any> = {}
+      newBook["name"] = data["name"];
+      newBook["price"] = data["price"];
+      newBook["count"] = data["count"];
+      newBook["image"] = data["image"];
+      this.books.push(newBook);
+      console.log(JSON.stringify(newBook));
+    }
+
+    // console.log('begin subscribe')
+    // this.unSubscribe = db.table("books").subscribe(
+    //   (data) => {
+    //     console.log("call back")
+    //     console.log(JSON.stringify(data))
+    //     if (data.messageType == MBaaS.SYN_CONTENT){
+    //       let contentData = data as MBaaS.contentData;
+    //       let data_1 = contentData.updateData.pop();
+    //       console.log(JSON.stringify(data_1))
+    //
+    //     }
+    //   }
+    // )
+
+  }
+  onPageHide(){
+    // this.unSubscribe()
   }
 
   build() {
@@ -49,12 +67,12 @@ struct BookList {
           .margin({left:25})
           .onClick(()=>{
             router.replaceUrl({ url: "pages/Login" })
-          })
+          }).height("100%")
 
         Text(globalThis.userName)
           .fontSize(25)
           .height("100%")
-          .layoutWeight(3)
+          .layoutWeight(4)
           .textAlign(TextAlign.Center)
           .fontWeight(FontWeight.Bold)
           // .backgroundColor(0xD2B48C);
@@ -62,10 +80,10 @@ struct BookList {
           .layoutWeight(2)
           .textAlign(TextAlign.Center)
           .fontColor(Color.Black)
-          .fontSize(12)
+          .fontSize(15)
           .onClick(()=>{
             router.pushUrl({url:"pages/OrderList"})
-          })
+          }).height("100%").margin({right:10})
       }
       .width("100%").height(47)
       // .backgroundColor(0xF5DEB3);

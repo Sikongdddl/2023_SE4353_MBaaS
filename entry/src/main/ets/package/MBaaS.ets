@@ -180,7 +180,6 @@ const serverUrl:string = "47.94.130.65:8081";
     private fieldType:Map<string, string>;
     private keyFieldName:string;
 
-
     constructor(db:DatabaseHelper, tableId:string, fields?:Set<string>, keyFieldName?:string, fieldType?:Map<string, string>) {
       this.db = db;
       this.tableId = tableId;
@@ -210,7 +209,7 @@ const serverUrl:string = "47.94.130.65:8081";
       return record;
     }
 
-    public setFields(fields:Record<string, string>):Promise<string> {
+    public setFields(fields:Record<string, string>, isKeyAutoIncre:number = 1):Promise<string> {
       let promise = new Promise<string>((resolve, reject) => {
         for (const name in fields){
           if (!FIELD_TYPE.has(fields[name])){
@@ -229,6 +228,7 @@ const serverUrl:string = "47.94.130.65:8081";
               "databaseId": this.db.databaseId,
               "tableId": this.tableId,
               "newFields": fields,
+              "autoIncre": isKeyAutoIncre
             },
           }
           , (err, data) => {
@@ -266,7 +266,7 @@ const serverUrl:string = "47.94.130.65:8081";
       return promise
     }
 
-    public addFiled(field:string, fieldType:string):Promise<string> {
+    public addField(field:string, fieldType:string):Promise<string> {
       let promise = new Promise<string>( (resolve, reject) => {
         if (!FIELD_TYPE.has(fieldType)){
           reject("Type " + fieldType + " is invalid!")
@@ -504,14 +504,14 @@ const serverUrl:string = "47.94.130.65:8081";
       this._data = data;
     }
 
-    public async get():Promise<RecordRef> {
+    public async get():Promise<RecordRef[]> {
       let query = new Query(this.databaseId, this.tableId, this.keyFieldName, EQUAL, this.keyFieldValue);
       // console.log(this.keyFieldName);
       // console.log(this.keyFieldValue);
       let res:RecordRef[] = await query.get();
       let record = res.pop();
       this._data = record.data();
-      return record;
+      return res;
     }
 
     public set(data:Record<string, any>):Promise<string> {
@@ -717,6 +717,9 @@ const serverUrl:string = "47.94.130.65:8081";
         //   console.log(condition.whereRelation);
         //   console.log(condition.whereTargetValue);
         // }
+        console.log("MBaaS query")
+        console.log("whereconditions: " + JSON.stringify(this.conditions));
+        console.log("join: " + JSON.stringify(this.join));
         httpRequest.request(
           Connect.httpAddress + urlSuffix,
           {
@@ -736,6 +739,7 @@ const serverUrl:string = "47.94.130.65:8081";
             if (data.responseCode == 200) {
               let res = data.result.toString();
               const resJson = JSON.parse(res) as Response;
+              console.log("MBaaS query result")
               console.log(JSON.stringify(resJson));
               if (resJson.statusCode == SUCCESS) {
                 for (let record of resJson.records){
@@ -744,6 +748,7 @@ const serverUrl:string = "47.94.130.65:8081";
                   newRec.setData(record);
                   this.queryResult.push(newRec);
                 }
+                console.log("MBaaS query length: " + this.queryResult.length.toString())
 
                 // order
                 // 大小写敏感
@@ -783,6 +788,7 @@ const serverUrl:string = "47.94.130.65:8081";
                   switch(this.aggre[1]) {
                     case AGGREGATION_SUM:
                       let sum = 0;
+                      console.log(JSON.stringify(this.queryResult))
                       this.queryResult.forEach( (record) => {
                         console.log(JSON.stringify(record.data()[field]));
                         sum = sum + record.data()[field];
@@ -1114,7 +1120,7 @@ const serverUrl:string = "47.94.130.65:8081";
 
       this.connect.ws.on('message', (err, value) => {
         let msg = JSON.parse(value as string) as WsMessage;
-        // console.log("on message, message:" + JSON.stringify(msg));
+        console.log("on message, message:" + JSON.stringify(msg));
         if (this.listenMap.has(msg.tableId)){
           switch (msg.messageType) {
             case SYN_CONTENT:
@@ -1249,6 +1255,8 @@ const serverUrl:string = "47.94.130.65:8081";
           extraData: {
             "databaseId": this.databaseId,
             "tableId": tableId,
+            // to be fix
+            // "deviceId": "2333333"
           },
         },
         (err, data) => {
@@ -1260,9 +1268,13 @@ const serverUrl:string = "47.94.130.65:8081";
                 this.listenMap.set(tableId, callback);
                 console.log("subscribe success " + tableId);
               }
-              else {}
+              else {
+                console.log("subscribe success" )
+              }
             }
-            else {}
+            else {
+              console.log("network " + data.responseCode.toString())
+            }
           }
           else {
             console.info('error:' + JSON.stringify(err));
@@ -1281,7 +1293,7 @@ const serverUrl:string = "47.94.130.65:8081";
               },
               extraData: {
                 "databaseId": this.databaseId,
-                "tableId": tableId,
+                "tableId": tableId
               },
             },
             (err, data) => {

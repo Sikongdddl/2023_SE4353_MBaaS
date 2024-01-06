@@ -199,7 +199,59 @@ db.table("book").orderBy("book_id", "desc").limit(3).get()
 
 ##### 订阅
 
-todo
+* 监听某张表的变动
+
+* 回调函数中的data可能是contentData的类型，表示变动的是表的内容；也可能是fieldData的类型，表示变动的是表的元数据。可以通过`data.messageType`判断，然后将data解析成对应的类型：
+  
+  ```typescript
+  if (data.messageType == MBaaS.SYN_CONTENT){
+      let contentData = data as MBaaS.contentData;
+  }
+  else if (data.messageType == MBaaS.SYN_FIELD){
+      let fieldData = data as MBaaS.fieldData;
+  }
+  ```
+
+* 当变动的是表的内容时，可以通过contentData.updateData获取具体数据，这是一个synContent类型的数组，synContent接口如下：
+  
+  ```typescript
+  interface synContent {
+      changeType:string;
+      oldItem:Record<string, any>;
+      newItem:Record<string, any>;
+  }
+  ```
+  
+  changeType表示此次变动的类型，可能是add, modify, delete。
+  
+  oldItem和newItem分别表示变动前后的字段内容。（仅包含变动的字段和主键字段）
+  
+  （但是后端没有维护oldItem）
+
+* 当变动的是表的元数据时，通过filedContent.changeType查看更改类型，可能的取值有：newTable, ~~deleteTable~~, newField, deleteField, ~~renameTable~~, ~~renameField~~。（renameField、renameTable、deleteTable后端均未实现）。
+
+* **具体到每一种情况，比较复杂，建议阅读前后端接口文档websocket的部分。**
+
+* 以下是一个示例：
+
+```typescript
+
+let unSubscribe = db.table("book").subscribe(
+      (data) => {
+        // 变动的表的名字
+        console.log(data.tableId);
+        // 变动的是表的内容
+        if (data.messageType == MBaaS.SYN_CONTENT){
+          let contentData = data as MBaaS.contentData;
+          contentData.updateData.forEach((value)=>{
+            console.log(value.changeType);
+            console.log(JSON.stringify(value.newItem));
+          })
+        }
+      })
+```
+
+
 
 ##### 事务
 

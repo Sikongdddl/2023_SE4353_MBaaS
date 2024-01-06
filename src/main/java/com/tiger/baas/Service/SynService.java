@@ -1,11 +1,15 @@
 package com.tiger.baas.Service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tiger.baas.utils.RegisterBuffer;
+import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
+import javax.sound.midi.SysexMessage;
 import java.util.*;
 
 @Service
@@ -17,20 +21,24 @@ public class SynService {
     @Resource
     private TableService tableService;
 
-    private RegisterBuffer registerBuffer = new RegisterBuffer();
+    public RegisterBuffer registerBuffer;
 
+    public SynService(){
+        this.registerBuffer = new RegisterBuffer();
+    }
     public enum changeType{
         newTable,deleteTable,newField,deleteField,renameTable,renameField,add,modify,delete;
     }
 
-    public String subscribe(String databaseId, String tableId, String deviceId){
-        registerBuffer.add(databaseId, tableId, deviceId);
+    public String subscribe(String SessionId, String tableId){
+        //System.out.println("in syn service : " + this.registerBuffer);
+        registerBuffer.add(SessionId, tableId);
         registerBuffer.Traverse();
         return "0";
     }
 
-    public String unSubscribe(String databaseId, String tableId, String deviceId){
-        registerBuffer.delete(databaseId,tableId,deviceId);
+    public String unSubscribe(String sessionId, String tableId){
+        registerBuffer.delete(sessionId,tableId);
         registerBuffer.Traverse();
         return "0";
     }
@@ -48,18 +56,24 @@ public class SynService {
         return res;
     }
 
-    public Map<String, String> generatePayloadContentHead(String databaseId, String tableId){
+    public Map<String, String> generatePayloadContentHead(String databaseId, String tableId) {
         Map<String, String> res = new HashMap<>();
+
         res.put("messageType","SynContent");
         res.put("databaseId", databaseId);
         res.put("tableId", tableId);
+
+        System.out.println();
         return res;
     }
 
-    public List<Map<String,Object>> generatePayloadContentBody(changeType type,Map<String, String> newItem, Map<String, String> oldItem){
-        List<Map<String,Object>> res = new ArrayList<>();
+    public Map<String, Object> generatePayloadContentChangeType(changeType type){
         Map<String, Object> changeTypeEntry = new HashMap<>();
-        changeTypeEntry.put("changeType", type);
+        changeTypeEntry.put("changeType",(Object)(""+type));
+        return changeTypeEntry;
+    }
+    public List<Map<String,Object>> generatePayloadContentBody(Map<String, String> newItem, Map<String, String> oldItem){
+        List<Map<String,Object>> res = new ArrayList<>();
 
         Map<String, Object> newItemEntry = new HashMap<>();
         newItemEntry.put("newItem", newItem);
@@ -67,7 +81,6 @@ public class SynService {
         Map<String, Object> oldItemEntry = new HashMap<>();
         newItemEntry.put("oldItem", oldItem);
 
-        res.add(changeTypeEntry);
         res.add(newItemEntry);
         res.add(oldItemEntry);
 
@@ -83,25 +96,54 @@ public class SynService {
         String newItem = payload.get("newItem");
         String oldItem = payload.get("oldItem");
 
-        List<String> userList = registerBuffer.getUserList(databaseId,tableId);
+        //databaseId + synMetaUUID
+        List<String> userList = registerBuffer.getSessionList(tableId);
 
         JSONObject jsonMessage = JSONObject.fromObject(payload);
         for(String userId : userList){
             WebSocketService.sendMessage(userId,jsonMessage.toString());
+            System.out.println("send message field");
         }
     }
 
-    public void sendMessageContent(Map<String, String> payloadHead, Map<String, Object> payloadBody){
+    public void sendMessageContent(Map<String, String> payloadHead, Map<String, Object> payloadChangeType,Map<String, Object> payloadBody) throws JsonProcessingException {
+        System.out.println("start sendMessage");
         String messageType = payloadHead.get("messageType");
         String databaseId = payloadHead.get("databaseId");
         String tableId = payloadHead.get("tableId");
+        String changeType = payloadHead.get("changeType");
 
-        List<String> userList = registerBuffer.getUserList(databaseId,tableId);
+        List<String> userList = registerBuffer.getSessionList(tableId);
 
-        JSONObject jsonMessageHead = JSONObject.fromObject(payloadHead);
-        JSONObject jsonMessageBody = JSONObject.fromObject(payloadBody);
+        ObjectMapper objectmapper = new ObjectMapper();
+        String jsonMessageHead = objectmapper.writeValueAsString(payloadHead);
+//
+//        String jsonMessageChangeType = objectmapper.writeValueAsString(payloadChangeType);
+//
+//        String jsonMessageBody = objectmapper.writeValueAsString(payloadBody);
+
+        List<Map<String, Object>> res = new ArrayList<>();
+
+        Map<String, Object> tempMap = new HashMap<>();
+        tempMap.put("changeType",payloadChangeType.get("changeType"));
+        tempMap.put("newItem",payloadBody.get("newItem"));
+        tempMap.put("oldItem",payloadBody.get("oldItem"));
+        res.add(tempMap);
+
+        Map<String, Object> jsonMap = new HashMap<>();
+        jsonMap.put("updateData",res);
+
+        String jsonMessageBody = objectmapper.writeValueAsString(jsonMap);
+
+//        System.out.println(jsonMessageHead);
+//        System.out.println(jsonMessageChangeType);
+//        System.out.println(jsonMessageBody);
+
+        String jsonMessage = jsonMessageHead.substring(0,jsonMessageHead.length()-1) + "," + jsonMessageBody.substring(1,jsonMessageBody.length());
+
         for(String userId : userList){
-            WebSocketService.sendMessage(userId,jsonMessageHead.toString() + jsonMessageBody.toString());
+            WebSocketService.sendMessage(userId,jsonMessage);
+            System.out.println("send message content");
         }
     }
 

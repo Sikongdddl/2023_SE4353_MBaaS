@@ -25,13 +25,13 @@ public class TableService {
     private EntityManager entityManager;
 
     @Autowired
-    private JdbcTemplate jdbcTemplate;
+    private JdbcTemplate jdbcTemplate ;
 
     @Autowired
-    private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private NamedParameterJdbcTemplate namedParameterJdbcTemplate ;
 
     @Resource
-    private MetaDataRepo metaDataRepo;
+    private MetaDataRepo metaDataRepo ;
 
     private UtilFunc utilFunc = new UtilFunc();
 
@@ -344,7 +344,6 @@ public class TableService {
         }
 
         sqlBuilder.delete(sqlBuilder.length() - 2, sqlBuilder.length());
-
 
         String primary_key_field_name = metaDataRepo.findDistinctFirstByTablebelong(realTableName).getPrimarykey();
 

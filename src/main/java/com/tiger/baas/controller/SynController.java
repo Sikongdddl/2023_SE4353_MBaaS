@@ -21,7 +21,7 @@ public class SynController {
     @Resource
     private SynService synService;
 
-    TransactionBuffer transactionBuffer;
+    TransactionBuffer transactionBuffer = new TransactionBuffer();
 
     @PostMapping("/createTransaction")
     public Result createTransaction(@RequestBody JSONObject jsonObject){

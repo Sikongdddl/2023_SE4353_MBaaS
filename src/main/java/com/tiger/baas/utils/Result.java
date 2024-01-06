@@ -14,6 +14,8 @@ public class Result<T> {
     private String transactionId;
     @JsonProperty(value = "transactionVersion")
     private int transactionVersion;
+    @JsonProperty(value = "uuid")
+    private String uuid;
 
 
     private Map<String, Map<String, String>> metaData;
@@ -67,6 +69,14 @@ public class Result<T> {
         this.transactionVersion = transationVersion;
     }
 
+    public String getUuid() {
+        return uuid;
+    }
+
+    public void setUuid(String uuid) {
+        this.uuid = uuid;
+    }
+
     public Result() {
     }
 
@@ -85,11 +95,12 @@ public class Result<T> {
     }
 
 
-    public static Result successMeta(String statusCode, String errMessage, Map<String, Map<String, String>> metaData){
+    public static Result successMeta(String statusCode, String errMessage, Map<String, Map<String, String>> metaData, String uuid){
         Result result = new Result();
         result.setStatusCode(statusCode);
         result.setErrMessage(errMessage);
         result.setMetaData(metaData);
+        result.setUuid(uuid);
         return result;
     }
 
@@ -107,6 +118,14 @@ public class Result<T> {
         result.setErrMessage(errMessage);
         result.setTransactionId(transationId);
         result.setTransactionVersion(transationVersion);
+        return result;
+    }
+
+    public static Result successUUID(String statusCode, String errMessage, String uuid){
+        Result result = new Result();
+        result.setStatusCode(statusCode);
+        result.setErrMessage(errMessage);
+        result.setUuid(uuid);
         return result;
     }
 

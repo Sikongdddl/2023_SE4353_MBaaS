@@ -1,6 +1,5 @@
 package com.tiger.baas.Service;
 
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -10,6 +9,7 @@ import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
 import java.io.IOException;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @ServerEndpoint(value = "/websocket/{userId}")
@@ -36,13 +36,16 @@ public class WebSocketService {
     @OnOpen
     public void onOpen(Session session, @PathParam("userId") String userId) {
         this.session = session;
+
         this.userId= userId;
+
         WebSocketClient client = new WebSocketClient();
         client.setSession(session);
         client.setUri(session.getRequestURI().toString());
+
         webSocketMap.put(userId, client);
         log.info("连接:"+userId+",当前使用人数为:" + webSocketMap.size());
-//        System.out.println(this);
+
     }
 
     /**
@@ -62,9 +65,9 @@ public class WebSocketService {
      * */
     @OnMessage
     public void onMessage(String message, Session session) {
-
         log.info("收到用户消息:"+userId+",报文:"+message);
         log.info("userId: " + getUserId());
+
         sendMessage(getUserId(), message);
 //        sendMessage(getUserId(), "Done");
     }
@@ -99,6 +102,7 @@ public class WebSocketService {
             WebSocketClient webSocketClient = webSocketMap.get(userId);
             if(webSocketClient!=null){
                 webSocketClient.getSession().getBasicRemote().sendText(message);
+                System.out.println("send a message to userid: " + userId);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -113,6 +117,5 @@ public class WebSocketService {
     public void setUserId(String userId) {
         this.userId = userId;
     }
-
 
 }

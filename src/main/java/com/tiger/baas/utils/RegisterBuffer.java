@@ -1,64 +1,72 @@
 package com.tiger.baas.utils;
 
-import com.tiger.baas.entity.MetaData;
+import org.springframework.stereotype.Service;
 
 import java.util.*;
 
+
 public class RegisterBuffer {
+
     Map<String, String> device2db = new HashMap<>();
 
     Map<String, String> device2tb = new HashMap<>();
 
-    List<String> deviceList = new ArrayList<>();
+    Map<String, String> session2tb = new HashMap<>();
 
-    public void add(String databaseId, String tableId, String deviceId){
-        device2db.put(deviceId,databaseId);
-        device2tb.put(deviceId,tableId);
-        if(!deviceList.contains(deviceId)){
-            deviceList.add(deviceId);
+    List<String> sessionList = new ArrayList<>();
+
+    public void add(String sessionId, String tableId){
+        this.session2tb.put(sessionId, tableId);
+
+        if(!this.sessionList.contains(sessionId)){
+            System.out.println("New Session: " + sessionId);
+            this.sessionList.add(sessionId);
         }
     }
 
-    public void delete(String databaseId, String tableId, String deviceId){
-        device2db.remove(deviceId,databaseId);
-        device2db.remove(deviceId, tableId);
+    public void delete(String sessionId, String tableId){
+        //device2db.remove(deviceId,databaseId);
+        //device2db.remove(deviceId, tableId);
+        this.session2tb.remove(sessionId, tableId);
     }
 
-    public List<String> getUserList(String databaseId, String tableId){
+    public List<String> getSessionList(String tableId){
+        System.out.println("start get session list");
         List<String> res = new ArrayList<>();
-        for(int i = 0; i < deviceList.size(); ++i){
-            boolean tbHitFlag = false;
-            boolean dbHitFlag = false;
-            for(Map.Entry<String, String> entry : device2db.entrySet()){
-                if (Objects.equals(entry.getKey(), deviceList.get(i)) && Objects.equals(entry.getValue(),databaseId)) {
-                    dbHitFlag = true;
+
+        System.out.println("length of sessionList: " + this.sessionList.size());
+        for(int i = 0; i < this.sessionList.size(); ++i){
+            boolean tableHitFlag = false;
+            boolean sessionHitFlag = false;
+
+            for(Map.Entry<String, String> entry : this.session2tb.entrySet()){
+                if(sessionHitFlag && tableHitFlag){
                     break;
                 }
-            }
-            for(Map.Entry<String, String> entry : device2tb.entrySet()){
-                if (Objects.equals(entry.getKey(), deviceList.get(i)) && Objects.equals(entry.getValue(),tableId)) {
-                    tbHitFlag = true;
-                    break;
+                if (Objects.equals(entry.getKey(), this.sessionList.get(i))) {
+                    sessionHitFlag = true;
+                }
+                if(Objects.equals(entry.getValue(), tableId)){
+                    tableHitFlag = true;
                 }
             }
-            if(tbHitFlag && dbHitFlag){
-                res.add(deviceList.get(i));
+
+            if(tableHitFlag && sessionHitFlag){
+                res.add(this.sessionList.get(i));
             }
         }
         return res;
     }
 
     public void Traverse(){
-        System.out.println("Starting Traverse device to database buffer");
-        for(Map.Entry<String, String> entry : device2db.entrySet()){
+        System.out.println("Starting Traverse session to tableId buffer");
+        for(Map.Entry<String, String> entry : this.session2tb.entrySet()){
             System.out.println("Key: " + entry.getKey());
             System.out.println("Value: " + entry.getValue());
         }
-
-        System.out.println("Starting Traverse device to table buffer");
-        for(Map.Entry<String, String> entry : device2tb.entrySet()){
-            System.out.println("Key: " + entry.getKey());
-            System.out.println("Value: " + entry.getValue());
+        System.out.println("Starting Traverse sessionList");
+        for(int i = 0; i < this.sessionList.size(); ++i){
+            System.out.println("number "+ i +"item: " + this.sessionList.get(i));
         }
     }
 }

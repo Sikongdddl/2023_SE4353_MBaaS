@@ -44,9 +44,11 @@ const OPERATION_DEL ="delete";
 
 namespace MBaaS{
 
-const serverUrl:string = "47.94.130.65:8081";
+  const serverUrl:string = "47.94.130.65:8081";
 //   const serverUrl:string = "10.0.2.2:8088";
   const wsSuffix:string = "/websocket/";
+
+  let wsUid:string = "";
 
   let tables:Map<string, TableRef> = new Map();
   let transactionStatus:Map<string, string> = new Map();
@@ -71,6 +73,8 @@ const serverUrl:string = "47.94.130.65:8081";
     transactionId: string;
     transactionVersion: number;
 
+    uuid: string;
+
     // 补bug
     data?:any;
     code?:any;
@@ -85,17 +89,17 @@ const serverUrl:string = "47.94.130.65:8081";
     messageType:string;
     databaseId:string;
     tableId:string;
-    updateData:Array<synContent>;
+    updateData?:Array<synContent>;
 
-    fieldId:string;
-    fieldType:string;
-    changeType:string;
-    newItem:string;
-    oldItem:string;
+    fieldId?:string;
+    fieldType?:string;
+    changeType?:string;
+    newItem?:string;
+    oldItem?:string;
   }
   interface synContent {
     changeType:string;
-    oleItem:Record<string, any>;
+    oldItem:Record<string, any>;
     newItem:Record<string, any>;
   }
   export interface contentData {
@@ -108,11 +112,11 @@ const serverUrl:string = "47.94.130.65:8081";
     messageType:string;
     databaseId:string;
     tableId:string;
-    fieldId:string;
-    fieldType:string;
+    fieldId?:string;
+    fieldType?:string;
     changeType:string;
-    newField:string;
-    oldField:string;
+    newField?:string;
+    oldField?:string;
   }
   interface Operation {
     type:string;
@@ -133,6 +137,7 @@ const serverUrl:string = "47.94.130.65:8081";
       // socket地址补上数据库id后缀
       this.db = databaseHelper;
       this.wsAddress += databaseHelper.databaseId;
+      this.wsAddress += "_" + wsUid;
 
       // 建立连接
       this.ws = webSocket.createWebSocket();
@@ -418,7 +423,6 @@ const serverUrl:string = "47.94.130.65:8081";
     }
 
     public subscribe(callback:(data:fieldData|contentData) => void): ()=>void {
-      console.log(JSON.stringify(callback));
       return this.db.subscribe(this.tableId, callback);
     }
 
@@ -1063,11 +1067,10 @@ const serverUrl:string = "47.94.130.65:8081";
 
     constructor(databaseId:string) {
       this.databaseId = databaseId;
-      this.connect = new Connect(this);
-
       // 初始化数据库各表的元数据
       let httpRequest = http.createHttp();
       let res:string;
+
       httpRequest.request(
         Connect.httpAddress + 'synMetadata',
         {
@@ -1087,6 +1090,125 @@ const serverUrl:string = "47.94.130.65:8081";
 
             // console.info('code:' + JSON.stringify(data.responseCode));
             console.info('Result:' + JSON.stringify(resJson));
+
+            wsUid = resJson.uuid;
+            console.log("uuid: " + wsUid);
+            this.connect = new Connect(this);
+
+
+            this.connect.ws.on('message', (err, value) => {
+              console.log("on message, message:" + JSON.stringify(value));
+
+              let msg = JSON.parse(value as string) as WsMessage;
+              console.log(JSON.stringify(msg));
+
+              if (this.listenMap.has(msg.tableId)){
+                switch (msg.messageType) {
+                  case SYN_CONTENT:
+                    let cData:contentData = {
+                      messageType: SYN_CONTENT,
+                      tableId: msg.tableId,
+                      databaseId: msg.databaseId,
+                      updateData: msg.updateData,
+                    };
+                    let content_callback = this.listenMap.get(msg.tableId);
+                    content_callback(cData);
+                    break;
+                  case SYN_FIELD:
+                  // console.log("here field");
+                    let fData:fieldData = {
+                      messageType: SYN_FIELD,
+                      tableId: msg.tableId,
+                      databaseId: msg.databaseId,
+                      fieldId: msg.fieldId,
+                      fieldType:msg.fieldType,
+                      changeType: msg.changeType,
+                      newField: msg.newItem,
+                      oldField: msg.oldItem,
+                    };
+                    console.log(msg.changeType)
+                    switch(msg.changeType){
+                      case NEW_TABLE:
+                        let tableRef = new TableRef(this, msg.tableId);
+                        tables.set(msg.tableId, tableRef);
+                        break;
+                      case DELETE_TABLE:
+                        if (tables.has(msg.tableId)){
+                          tables.delete(msg.tableId);
+                        }
+                        break;
+                      case RENAME_TABLE:
+                        if (tables.has(msg.tableId)){
+                          let oldTableRef = tables.get(msg.oldItem);
+                          let fields = oldTableRef.getFields();
+                          let keyFiledName = oldTableRef.getKeyFieldName();
+                          let fieldType = oldTableRef.getFieldType();
+                          let newTableRef = new TableRef(this, msg.tableId, fields, keyFiledName, fieldType);
+                          tables.set(msg.tableId, newTableRef);
+                          tables.delete(msg.oldItem);
+                        }
+                        else{
+                          console.log("Error, table" + msg.tableId + "do not exist!");
+                        }
+                        break;
+                      case NEW_FIELD:
+                        if (tables.has(msg.tableId)){
+                          let oldTableRef = tables.get(msg.tableId);
+                          let fields = oldTableRef.getFields();
+                          fields.add(msg.fieldId);
+                          let keyFiledName = oldTableRef.getKeyFieldName();
+                          let fieldType:Map<string, string> = oldTableRef.getFieldType();
+                          fieldType.set(msg.fieldId, msg.fieldType);
+                          let newTableRef = new TableRef(this, msg.tableId, fields, keyFiledName, fieldType);
+                          console.log("new field " + JSON.stringify(fields));
+                          tables.set(msg.tableId, newTableRef);
+                        }
+                        else{
+                          console.log("Error, table" + msg.tableId + "do not exist!");
+                        }
+                        break;
+                      case DELETE_FIELD:
+                        if (tables.has(msg.tableId)){
+                          let oldTableRef = tables.get(msg.tableId);
+                          let fields = oldTableRef.getFields();
+                          fields.delete(msg.fieldId);
+                          let keyFiledName = oldTableRef.getKeyFieldName();
+                          let fieldType:Map<string, string> = oldTableRef.getFieldType();
+                          fieldType.delete(msg.fieldId);
+                          let newTableRef = new TableRef(this, msg.tableId, fields, keyFiledName, fieldType);
+                          tables.set(msg.tableId, newTableRef);
+                        }
+                        else{
+                          console.log("Error, table" + msg.tableId + "do not exist!");
+                        }
+                        break;
+                      case RENAME_FIELD:
+                        if (tables.has(msg.tableId)){
+                          let oldTableRef = tables.get(msg.tableId);
+                          let fields = oldTableRef.getFields();
+                          fields.delete(msg.oldItem);
+                          fields.add(msg.newItem);
+                          let keyFiledName = oldTableRef.getKeyFieldName();
+                          let fieldType:Map<string, string> = oldTableRef.getFieldType();
+                          fieldType.set(msg.newItem, fieldType.get(msg.oldItem));
+                          fieldType.delete(msg.oldItem);
+                          let newTableRef = new TableRef(this, msg.tableId, fields, keyFiledName, fieldType);
+                          tables.set(msg.tableId, newTableRef);
+                        }
+                        else{
+                          console.log("Error, table" + msg.tableId + "do not exist!");
+                        }
+                        break;
+                    }
+                    let field_callback = this.listenMap.get(msg.tableId);
+                    field_callback(fData);
+                    break;
+                }
+              }
+            });
+
+
+
             const jsonObject = JSON.parse(JSON.stringify(resJson.metaData));
             for (const [tableId, fieldTypeObj] of Object.entries(jsonObject)){
               // console.log(tableId);
@@ -1118,113 +1240,8 @@ const serverUrl:string = "47.94.130.65:8081";
       }
       );
 
-      this.connect.ws.on('message', (err, value) => {
-        let msg = JSON.parse(value as string) as WsMessage;
-        console.log("on message, message:" + JSON.stringify(msg));
-        if (this.listenMap.has(msg.tableId)){
-          switch (msg.messageType) {
-            case SYN_CONTENT:
-              let cData:contentData = {
-                messageType: SYN_CONTENT,
-                tableId: msg.tableId,
-                databaseId: msg.databaseId,
-                updateData: msg.updateData,
-              };
-              let content_callback = this.listenMap.get(msg.tableId);
-              content_callback(cData);
-              break;
-            case SYN_FIELD:
-            // console.log("here field");
-              let fData:fieldData = {
-                messageType: SYN_FIELD,
-                tableId: msg.tableId,
-                databaseId: msg.databaseId,
-                fieldId: msg.fieldId,
-                fieldType:msg.fieldType,
-                changeType: msg.changeType,
-                newField: msg.newItem,
-                oldField: msg.oldItem,
-              };
-              console.log(msg.changeType)
-              switch(msg.changeType){
-                case NEW_TABLE:
-                  let tableRef = new TableRef(this, msg.tableId);
-                  tables.set(msg.tableId, tableRef);
-                  break;
-                case DELETE_TABLE:
-                  if (tables.has(msg.tableId)){
-                    tables.delete(msg.tableId);
-                  }
-                  break;
-                case RENAME_TABLE:
-                  if (tables.has(msg.tableId)){
-                    let oldTableRef = tables.get(msg.oldItem);
-                    let fields = oldTableRef.getFields();
-                    let keyFiledName = oldTableRef.getKeyFieldName();
-                    let fieldType = oldTableRef.getFieldType();
-                    let newTableRef = new TableRef(this, msg.tableId, fields, keyFiledName, fieldType);
-                    tables.set(msg.tableId, newTableRef);
-                    tables.delete(msg.oldItem);
-                  }
-                  else{
-                    console.log("Error, table" + msg.tableId + "do not exist!");
-                  }
-                  break;
-                case NEW_FIELD:
-                  if (tables.has(msg.tableId)){
-                    let oldTableRef = tables.get(msg.tableId);
-                    let fields = oldTableRef.getFields();
-                    fields.add(msg.fieldId);
-                    let keyFiledName = oldTableRef.getKeyFieldName();
-                    let fieldType:Map<string, string> = oldTableRef.getFieldType();
-                    fieldType.set(msg.fieldId, msg.fieldType);
-                    let newTableRef = new TableRef(this, msg.tableId, fields, keyFiledName, fieldType);
-                    console.log("new field " + JSON.stringify(fields));
-                    tables.set(msg.tableId, newTableRef);
-                  }
-                  else{
-                    console.log("Error, table" + msg.tableId + "do not exist!");
-                  }
-                  break;
-                case DELETE_FIELD:
-                  if (tables.has(msg.tableId)){
-                    let oldTableRef = tables.get(msg.tableId);
-                    let fields = oldTableRef.getFields();
-                    fields.delete(msg.fieldId);
-                    let keyFiledName = oldTableRef.getKeyFieldName();
-                    let fieldType:Map<string, string> = oldTableRef.getFieldType();
-                    fieldType.delete(msg.fieldId);
-                    let newTableRef = new TableRef(this, msg.tableId, fields, keyFiledName, fieldType);
-                    tables.set(msg.tableId, newTableRef);
-                  }
-                  else{
-                    console.log("Error, table" + msg.tableId + "do not exist!");
-                  }
-                  break;
-                case RENAME_FIELD:
-                  if (tables.has(msg.tableId)){
-                    let oldTableRef = tables.get(msg.tableId);
-                    let fields = oldTableRef.getFields();
-                    fields.delete(msg.oldItem);
-                    fields.add(msg.newItem);
-                    let keyFiledName = oldTableRef.getKeyFieldName();
-                    let fieldType:Map<string, string> = oldTableRef.getFieldType();
-                    fieldType.set(msg.newItem, fieldType.get(msg.oldItem));
-                    fieldType.delete(msg.oldItem);
-                    let newTableRef = new TableRef(this, msg.tableId, fields, keyFiledName, fieldType);
-                    tables.set(msg.tableId, newTableRef);
-                  }
-                  else{
-                    console.log("Error, table" + msg.tableId + "do not exist!");
-                  }
-                  break;
-              }
-              let field_callback = this.listenMap.get(msg.tableId);
-              field_callback(fData);
-              break;
-          }
-        }
-      });
+
+
     }
 
     public connectWebSocket():void {
@@ -1255,6 +1272,7 @@ const serverUrl:string = "47.94.130.65:8081";
           extraData: {
             "databaseId": this.databaseId,
             "tableId": tableId,
+            "uuid": wsUid,
             // to be fix
             // "deviceId": "2333333"
           },

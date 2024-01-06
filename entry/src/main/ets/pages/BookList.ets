@@ -33,27 +33,34 @@ struct BookList {
       newBook["price"] = data["price"];
       newBook["count"] = data["count"];
       newBook["image"] = data["image"];
+      newBook["isbn"] = data["isbn"];
       this.books.push(newBook);
       console.log(JSON.stringify(newBook));
     }
 
-    // console.log('begin subscribe')
-    // this.unSubscribe = db.table("books").subscribe(
-    //   (data) => {
-    //     console.log("call back")
-    //     console.log(JSON.stringify(data))
-    //     if (data.messageType == MBaaS.SYN_CONTENT){
-    //       let contentData = data as MBaaS.contentData;
-    //       let data_1 = contentData.updateData.pop();
-    //       console.log(JSON.stringify(data_1))
-    //
-    //     }
-    //   }
-    // )
+    console.log('begin subscribe')
+    this.unSubscribe = db.table("book").subscribe(
+      (data) => {
+        console.log("call back")
+        console.log(JSON.stringify(data))
+        if (data.messageType == MBaaS.SYN_CONTENT){
+          let contentData = data as MBaaS.contentData;
+
+
+
+
+          let data_1 = contentData.updateData.pop();
+          console.log(JSON.stringify(data_1))
+        }
+        else if (data.messageType == MBaaS.SYN_FIELD){
+          let fieldData = data as MBaaS.fieldData;
+        }
+      }
+    )
 
   }
   onPageHide(){
-    // this.unSubscribe()
+    this.unSubscribe()
   }
 
   build() {
@@ -212,7 +219,8 @@ struct BookList {
               imageUrl:item.image,
               name: item.name,
               price: item.price,
-              count: item.count
+              count: item.count,
+              isbn: item.isbn,
             });
           }
         })

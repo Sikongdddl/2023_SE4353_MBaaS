@@ -1,10 +1,12 @@
+import {MBaaS} from '../package/MBaaS'
 @CustomDialog
 struct BuyCustomDialog {
   controller: CustomDialogController
-  cancel: () => void
-  confirm: () => void
+  cancel: () => void;
+  confirm: () => void;
   imageUrl: string;
   name: string;
+  isbn: number;
 
   build() {
     Column() {
@@ -36,13 +38,15 @@ export struct BookCard{
   count: number;
   price: number;
   name: string = "";
+  isbn: number = 0;
 
   dialogController: CustomDialogController = new CustomDialogController({
     builder: BuyCustomDialog({
       cancel: this.onCancel,
       confirm: this.onAccept,
       imageUrl: this.imageUrl,
-      name: this.name
+      name: this.name,
+      isbn: this.isbn
     }),
     cancel: this.existApp,
     autoCancel: true,       //点击空白处退出弹窗 false不退出，true退出
@@ -56,6 +60,40 @@ export struct BookCard{
   onAccept() {
     // to be fix  发送订单
     console.info('单击确认按钮时的回调')
+
+    // let db: MBaaS.DatabaseHelper = globalThis.db;
+    // db.runTransaction( async(transaction) => {
+    //   let records = await transaction.query("book", this.isbn).get();
+    //   let oldCount = records.pop().data()["count"];
+    //   let newCount = oldCount - 1;
+    //   transaction.update("book", this.isbn, {
+    //     "count": newCount
+    //   })
+    //   let currentDate = new Date();
+    //   let words = currentDate.toDateString().split(" ").slice(1, 4);
+    //   let date = words.join("-")
+    //   words = currentDate.toTimeString().split(" ");
+    //   words.pop();
+    //   let time = words.join("-");
+    //
+    //   transaction.add("orders", {
+    //     "username": globalThis.userName,
+    //     "price": this.price,
+    //     "orderid": date + "-" + time
+    //   });
+    //
+    //   transaction.add("items", {
+    //     "orderid": date + "-" + time,
+    //     "bookname": this.name,
+    //     "number": 1,
+    //     "singleprice": this.price
+    //   });
+    // }).then((res)=>{
+    //   console.log(res);
+    // }).catch((err)=>{
+    //   console.log(err);
+    // });
+
   }
   existApp() {
     console.info('点击空白处的回调')

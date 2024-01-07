@@ -84,7 +84,7 @@
     })
       .then(response => response.json())
       .then(data => {
-        // Handle the response from your backend
+        // Handle the response from the backend
         var botResponse = data.response || "No response from the backend.";
         botResponse = botResponse.replace(/\n/g, "<br>");
         var botMessage = document.createElement("div");

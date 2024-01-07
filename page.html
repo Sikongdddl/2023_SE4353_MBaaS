@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MBaaS Helper</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+
+    #chat-container {
+      max-width: 800px;
+      margin: 50px auto;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    #chat-messages {
+      padding: 10px;
+      height: 600px;
+      overflow-y: scroll;
+    }
+
+    #user-input {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px;
+      background-color: #fff;
+      border-top: 1px solid #ccc;
+    }
+
+    #message-input {
+      flex: 1;
+      padding: 8px;
+      border: 1px dashed #ccc; /* Add dashed border for broken lines */
+    }
+
+    #send-button {
+      padding: 8px 12px;
+      background-color: #4CAF50;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div id="chat-container">
+  <div id="chat-messages"></div>
+  <div id="user-input">
+    <input type="text" id="message-input" placeholder="Type here...">
+    <button id="send-button" onclick="sendMessage()">Send</button>
+    <button id="clear-button" onclick="clearChat()">Clear History</button>
+  </div>
+</div>
+
+<script>
+  function sendMessage() {
+    var userInput = document.getElementById("message-input").value;
+    if (userInput.trim() === "") return;
+
+    var chatMessages = document.getElementById("chat-messages");
+    var userMessage = document.createElement("div");
+    userMessage.className = "user-message";
+    userMessage.innerHTML = `<strong>You:</strong> ${userInput}`;
+    chatMessages.appendChild(userMessage);
+    // Scroll to the bottom of the chat
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    // Make a POST request to the backend
+    fetch(`http://localhost:8080/ping?prompt=${encodeURIComponent(userInput)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      // No need to include body here
+    })
+      .then(response => response.json())
+      .then(data => {
+        // Handle the response from your backend
+        var botResponse = data.response || "No response from the backend.";
+        botResponse = botResponse.replace(/\n/g, "<br>");
+        var botMessage = document.createElement("div");
+        botMessage.className = "bot-message";
+        botMessage.innerHTML = `<strong>MBaaS Helper:</strong> ${botResponse}`;
+        chatMessages.appendChild(botMessage);
+        // Scroll to the bottom of the chat
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      })
+      .catch(error => {
+        console.error('Error sending message to the backend:', error);
+      });
+
+    // Clear the input field
+    document.getElementById("message-input").value = "";
+  }
+
+  function clearChat() {
+    document.getElementById("chat-messages").innerHTML = "";
+    fetch(`http://localhost:8080/clear`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      // No need to include body here
+    })
+    // Log a message when the chat is cleared for debugging
+    console.log('Chat cleared');
+  }
+</script>
+
+</body>
+</html>

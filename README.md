@@ -19,4 +19,4 @@ There will be some console logs and warnings because the code runs in debug mode
 
 Then you can visit ```http://localhost:8000``` to begin your dialogue.
 
-NOTES: Dialogue context will not be automatically cleared. You must explicitly press the clear button in the frontend or restart the backend to clear the context. One frontend session at a time, there is no promise how the code will work if multiple frontend page is opened.
+NOTES: Dialogue context will not be automatically cleared. You must explicitly press the clear button in the frontend or restart the backend to clear the context. One frontend session at a time, there is no promise how the code will work if multiple frontend pages are opened.

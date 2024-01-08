@@ -38,7 +38,7 @@ where 子句和 orderBy 子句可以多次使用，且顺序不限
 通过 subscribe 方法可以监听数据表的变化，例如 let ${SUBhandler} = db.table("${TABLEid}").subscribe(${CALLBACKfunction}(data))
 其中，${CALLBACKfunction} 是用户自行实现的回调函数，它接收表变动信息 data 作为参数，data 可能是 contentData 的类型，表示变动的是表的内容；也可能是 fieldData 的类型，表示变动的是表的元数据
 可以通过 data.messageType 判断 data 的类型，然后将 data 解析成对应类型的对象，例如 if (data.messageType == MBaaS.SYN_CONTENT) { let contentData = data as MBaaS.contentData; } else if (data.messageType == MBaaS.SYN_FIELD) { let fieldData = data as MBaaS.fieldData; }
-当发生变动的是表的内容时，解析得到的 contentData 对象包含了变动的具体数据，contentData 是一个 synContent 类型的数组，synContext 包含 changeType 和 newItem 两个字段，其中 changeType 取值为 "add", "modify", "delete" 之一，表示变动的类型，newItem 表示变动后的字段内容
+当发生变动的是表的内容时，解析得到的 contentData 对象包含了变动的具体数据，contentData 是一个 synContent 类型的数组，synContext 包含 changeType, oldItem, newItem 三个字段，其中 changeType 取值为 "add", "modify", "delete" 之一，表示变动的类型，oldItem 保存变动的行的主键以索引到改行，newItem 表示变动后的字段内容
 当发生变动的是表的元数据时，解析得到的 fieldData 对象包含变动的具体数据，可以通过 fieldContent.changeType 获取变动的类型，可能取值为 "newTable", "newField", "deleteField"
 ${SUBhandler} 是用户定义的解除监听函数名，要解除监听，只需要调用它，例如 ${SUBhandler}()
 你正在和一个希望使用 MBaaS 库的前端程序员交谈，你需要分析他的需求并按照步骤给出需要调用的接口和方法示例

@@ -1,9 +1,11 @@
 package com.tiger.baas.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.tiger.baas.Service.SynService;
 import com.tiger.baas.Service.TableService;
 import com.tiger.baas.utils.Result;
 import com.tiger.baas.utils.TransactionBuffer;
+import com.tiger.baas.utils.UtilFunc;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,6 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.annotation.Resource;
 import java.util.*;
 
+import static com.tiger.baas.controller.TableController.transactionBuffer;
+
 @RestController
 public class SynController {
     @Resource
@@ -21,7 +25,7 @@ public class SynController {
     @Resource
     private SynService synService;
 
-    TransactionBuffer transactionBuffer = new TransactionBuffer();
+    public UtilFunc utilFunc = new UtilFunc();
 
     @PostMapping("/createTransaction")
     public Result createTransaction(@RequestBody JSONObject jsonObject){
@@ -29,7 +33,6 @@ public class SynController {
         String transactionId = synService.createTransaction(databaseId);
         int currentVersion = transactionBuffer.addTransaction(transactionId);
         return Result.successTransactionCreate("0","事务创建成功，已分配事务id",transactionId,currentVersion);
-
     }
 
     //read request: query
@@ -79,7 +82,7 @@ public class SynController {
     //if transactionVersion is Correct: atomic deal a batch of write requests
     //if transactionVersion is Old: FAIL Straight!
     @PostMapping("/transactionCommit")
-    public Result transactionCommit(@RequestBody JSONObject jsonObject) {
+    public Result transactionCommit(@RequestBody JSONObject jsonObject) throws JsonProcessingException {
         String databaseId = jsonObject.getString("databaseId");
         String transactionId = jsonObject.getString("transactionId");
         int transactionVersion = jsonObject.getInt("transactionVersion");
@@ -111,8 +114,14 @@ public class SynController {
                         "-100","Old transaction version!", currentVersion);
             }
             else{
-                synService.transactionCommit(databaseId, transactionId, transactionVersion, operations);
-                return Result.success(String.valueOf(0),"finish transaction!");
+                System.out.println("transaction commit!!!In controller!!!!Holy shit !!!!!!!!");
+                String errno = synService.transactionCommit(databaseId, transactionId, transactionVersion, operations);
+                if(!Objects.equals(errno,"-1")) {
+                    return Result.success(String.valueOf(0),"finish transaction!");
+                }
+                else{
+                    return Result.error(errno,"bad sql in transactionCommit");
+                }
             }
         }
     }

@@ -21,6 +21,8 @@ public class TransactionBuffer {
         transaction2Tables.put(transactionId,tableList);
         setStatus(transactionId,"normal");
         transactionVersion.put(transactionId,0);
+        transactionStatus.put(transactionId,"normal");
+        System.out.println("new transaction added!" + transactionId);
         return 0;
     }
 
@@ -29,6 +31,7 @@ public class TransactionBuffer {
     public String getStatus(String transactionId){
         for(Map.Entry<String, String> entry : transactionStatus.entrySet()){
             if(Objects.equals(entry.getKey(), transactionId)){
+                System.out.println("transaction" + transactionId + "status: " + entry.getValue());
                 return entry.getValue();
             }
         }
@@ -38,6 +41,7 @@ public class TransactionBuffer {
     public Integer getVersion(String transactionId){
         for(Map.Entry<String, Integer> entry : transactionVersion.entrySet()){
             if(Objects.equals(entry.getKey(), transactionId)){
+                System.out.println("transaction" + transactionId + " version: " + entry.getValue());
                 return entry.getValue();
             }
         }
@@ -49,14 +53,21 @@ public class TransactionBuffer {
             if(Objects.equals(entry.getKey(), transactionId)){
                 Integer currentVersion = entry.getValue();
                 entry.setValue(currentVersion + 1);
+                System.out.println("transaction" + transactionId + " version change to : " + entry.getValue());
+                System.out.println("transaction" + transactionId + "recover normal status");
+                setStatus(transactionId, "normal");
             }
         }
     }
     public void setStatus(String transactionId, String status){
         for(Map.Entry<String, String> entry : transactionStatus.entrySet()){
+            System.out.println("target transaction: " + transactionId);
+            System.out.println("In set Status Current deal with: " + entry.getKey());
             if(Objects.equals(entry.getKey(), transactionId)){
+                System.out.println("transaction" + transactionId + "change status to : " + status);
+                String formerStatus = entry.getValue();
                 entry.setValue(status);
-                if(Objects.equals(status, "fail")){
+                if(Objects.equals(status, "fail") && !Objects.equals(formerStatus, "fail")){
                     setVersionWhenFail(transactionId);
                 }
             }
@@ -70,6 +81,7 @@ public class TransactionBuffer {
                 List<String> curTableList = entry.getValue();
                 curTableList.add(tableId);
                 entry.setValue(curTableList);
+                System.out.println("add table: "+ tableId + "to transaction: " + transactionId);
             }
         }
     }
@@ -80,6 +92,8 @@ public class TransactionBuffer {
             String curTransactionId = entry.getKey();
             for(String curTableId : curTableList){
                 if(Objects.equals(curTableId, tableId)){
+                    System.out.println("set table Danger: " + tableId);
+                    System.out.println("curTransactionId: " + curTransactionId);
                     this.setStatus(curTransactionId,"fail");
                 }
             }

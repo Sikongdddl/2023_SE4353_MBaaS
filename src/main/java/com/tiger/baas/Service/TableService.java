@@ -31,7 +31,7 @@ public class TableService {
     private NamedParameterJdbcTemplate namedParameterJdbcTemplate ;
 
     @Resource
-    private MetaDataRepo metaDataRepo ;
+    private MetaDataRepo metaDataRepo;
 
     private UtilFunc utilFunc = new UtilFunc();
 
@@ -119,11 +119,12 @@ public class TableService {
 
         for(Map.Entry<String, List<MetaData>> entry : metaData.entrySet()){
             String tablename = entry.getKey();
+            String primaryFieldName = metaDataRepo.findDistinctFirstByTablebelong(tablename).getPrimarykey();
             String fakeTableName = utilFunc.convertTableDbToTableAndDb(tablename)[0];
             List<MetaData> valueList = entry.getValue();
             List<String> currentFields = new ArrayList<>();
             Map<String, String> currentFieldMap = new HashMap<>();
-
+            Map<String, String> currentFieldMapFixKey = new LinkedHashMap<>();
             System.out.println("Processing table: " + tablename);
             for (MetaData value : valueList){
                 System.out.println("Value: " + value);
@@ -148,10 +149,24 @@ public class TableService {
                         currentValue = fieldvalue.toString();
                         currentFieldMap.put(currentKey,currentValue);
                     }
-
                 }
+
+                //put primary key at first place
+                for(Map.Entry<String, String> forkfield : currentFieldMap.entrySet()){
+                    if(Objects.equals(forkfield.getKey(), primaryFieldName)){
+                        System.out.println("meet primarykey: " + primaryFieldName);
+                        currentFieldMapFixKey.put(forkfield.getKey(), forkfield.getValue());
+                    }
+                }
+                for(Map.Entry<String, String> forkfield : currentFieldMap.entrySet()){
+                    if(!Objects.equals(forkfield.getKey(), primaryFieldName)){
+                        currentFieldMapFixKey.put(forkfield.getKey(), forkfield.getValue());
+                    }
+                }
+                System.out.println("before primary key: " + currentFieldMap.toString());
+                System.out.println("after primary key: " + currentFieldMapFixKey.toString());
                 res.put(fakeTableName,currentFields);
-                newres.put(fakeTableName,currentFieldMap);
+                newres.put(fakeTableName,currentFieldMapFixKey);
             }
         }
         return newres;
@@ -233,8 +248,11 @@ public class TableService {
             sql += " VARCHAR(255)";
         }
 
-
-        jdbcTemplate.execute(sql);
+        try{
+            jdbcTemplate.execute(sql);
+        }catch(Exception e){
+            return "-1";
+        }
 
         MetaData newRecord = new MetaData();
         newRecord.setFieldname(newField);
@@ -248,19 +266,23 @@ public class TableService {
     public String deleteFields(String databaseId, String tableId, String deleteField){
         String realTableName = utilFunc.convertTableAndDbToTableDb(tableId, databaseId);
         String sql = "ALTER TABLE " + realTableName + " DROP COLUMN " + deleteField ;
-        jdbcTemplate.execute(sql);
+        try {
+            jdbcTemplate.execute(sql);
+        }catch(Exception e){
+            return "-1";
+        }
 
         MetaData deleteOne = metaDataRepo.findByFieldname(deleteField);
         metaDataRepo.delete(deleteOne);
         return "0";
     }
 
-    public String addRecord(String databaseId, String tableId, Map<String, String> payload){
+    public String addRecord(String databaseId, String tableId, Map<String, Object> payload){
         String realTableName = utilFunc.convertTableAndDbToTableDb(tableId, databaseId);
         StringBuilder sqlBuilder = new StringBuilder("INSERT INTO "+realTableName+" (");
         StringBuilder valuesBuilder = new StringBuilder("VALUES (");
 
-        for (Map.Entry<String, String> entry : payload.entrySet()) {
+        for (Map.Entry<String, Object> entry : payload.entrySet()) {
             String columnName = entry.getKey();
 
             sqlBuilder.append(columnName).append(", ");
@@ -273,12 +295,17 @@ public class TableService {
         sqlBuilder.append(") ").append(valuesBuilder).append(")");
 
         System.out.println(sqlBuilder);
-        int affectedRows = namedParameterJdbcTemplate.update(sqlBuilder.toString(), payload);
+
+        try {
+            int affectedRows = namedParameterJdbcTemplate.update(sqlBuilder.toString(), payload);
+        }catch(Exception e){
+            return "-1";
+        }
 
         return "0";
     }
 
-    public String setRecord(String databaseId, String tableId, String rowId, Map<String, String> payload) throws IllegalAccessException {
+    public String setRecord(String databaseId, String tableId, Object rowId, Map<String, Object> payload) throws IllegalAccessException {
         String realTableName = utilFunc.convertTableAndDbToTableDb(tableId, databaseId);
         String primary_key_field_name = metaDataRepo.findDistinctFirstByTablebelong(realTableName).getPrimarykey();
         //gain all field list
@@ -312,7 +339,7 @@ public class TableService {
 
         System.out.println("after:" + payload);
 
-        for (Map.Entry<String, String> entry : payload.entrySet()) {
+        for (Map.Entry<String, Object> entry : payload.entrySet()) {
             String columnName = entry.getKey();
             sqlBuilder.append(columnName).append(" = :").append(columnName).append(", ");
         }
@@ -328,16 +355,19 @@ public class TableService {
         //payload.put(primary_key_field_name,"'rowId'");
         System.out.println(sqlBuilder.toString());
 
-        int affectedRows = namedParameterJdbcTemplate.update(sqlBuilder.toString(), payload);
-        System.out.println(affectedRows);
+        try {
+            int affectedRows = namedParameterJdbcTemplate.update(sqlBuilder.toString(), payload);
+        }catch(Exception e){
+            return "-1";
+        }
         return "0";
     }
 
-    public String updateRecord(String databaseId, String tableId, String rowId, Map<String, String> payload){
+    public String updateRecord(String databaseId, String tableId, Object rowId, Map<String, Object> payload){
         String realTableName = utilFunc.convertTableAndDbToTableDb(tableId, databaseId);
         StringBuilder sqlBuilder = new StringBuilder("UPDATE " + realTableName + " SET ");
 
-        for (Map.Entry<String, String> entry : payload.entrySet()) {
+        for (Map.Entry<String, Object> entry : payload.entrySet()) {
             String columnName = entry.getKey();
 
             sqlBuilder.append(columnName).append(" = :").append(columnName).append(", ");
@@ -352,18 +382,27 @@ public class TableService {
         sqlBuilder.append(" WHERE "+primary_key_field_name+" = " + "'" + rowId + "'");
         //sqlBuilder.append(" WHERE uuid = :uuid");
 
-        int affectedRows = namedParameterJdbcTemplate.update(sqlBuilder.toString(), payload);
+        try {
+            int affectedRows = namedParameterJdbcTemplate.update(sqlBuilder.toString(), payload);
+        }catch(Exception e){
+            return "-1";
+        }
 
         return "0";
     }
 
-    public String deleteRecord(String databaseId, String tableId, String rowId){
+    public String deleteRecord(String databaseId, String tableId, Object rowId){
         String realTableName = utilFunc.convertTableAndDbToTableDb(tableId, databaseId);
 
         String primary_key_field_name = metaDataRepo.findDistinctFirstByTablebelong(realTableName).getPrimarykey();
 
         String sql = "DELETE FROM "+realTableName + " WHERE " + primary_key_field_name+" = ?";
-        jdbcTemplate.update(sql,rowId);
+
+        try{
+            jdbcTemplate.update(sql,rowId);
+        }catch(Exception e){
+            return "-1";
+        }
         return "0";
     }
 

@@ -1,6 +1,7 @@
 package com.tiger.baas.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.tiger.baas.repository.MetaDataRepo;
 import com.tiger.baas.utils.RegisterBuffer;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -12,6 +13,8 @@ import javax.annotation.Resource;
 import javax.sound.midi.SysexMessage;
 import java.util.*;
 
+import static com.tiger.baas.controller.TableController.transactionBuffer;
+
 @Service
 public class SynService {
 
@@ -21,10 +24,13 @@ public class SynService {
     @Resource
     private TableService tableService;
 
-    public RegisterBuffer registerBuffer;
+    @Resource
+    private MetaDataRepo metaDataRepo;
+
+    public static RegisterBuffer registerBuffer;
 
     public SynService(){
-        this.registerBuffer = new RegisterBuffer();
+        registerBuffer = new RegisterBuffer();
     }
     public enum changeType{
         newTable,deleteTable,newField,deleteField,renameTable,renameField,add,modify,delete;
@@ -72,14 +78,15 @@ public class SynService {
         changeTypeEntry.put("changeType",(Object)(""+type));
         return changeTypeEntry;
     }
-    public List<Map<String,Object>> generatePayloadContentBody(Map<String, String> newItem, Map<String, String> oldItem){
+    public List<Map<String,Object>> generatePayloadContentBody(Map<String, Object> newItem, Map<String, Object> oldItem, String primaryKey, Object primaryValue){
         List<Map<String,Object>> res = new ArrayList<>();
 
+        newItem.put(primaryKey, primaryValue);
         Map<String, Object> newItemEntry = new HashMap<>();
         newItemEntry.put("newItem", newItem);
 
         Map<String, Object> oldItemEntry = new HashMap<>();
-        newItemEntry.put("oldItem", oldItem);
+        oldItemEntry.put("oldItem", oldItem);
 
         res.add(newItemEntry);
         res.add(oldItemEntry);
@@ -97,7 +104,7 @@ public class SynService {
         String oldItem = payload.get("oldItem");
 
         //databaseId + synMetaUUID
-        List<String> userList = registerBuffer.getSessionList(tableId);
+        List<String> userList = this.registerBuffer.getSessionList(tableId);
 
         JSONObject jsonMessage = JSONObject.fromObject(payload);
         for(String userId : userList){
@@ -113,7 +120,7 @@ public class SynService {
         String tableId = payloadHead.get("tableId");
         String changeType = payloadHead.get("changeType");
 
-        List<String> userList = registerBuffer.getSessionList(tableId);
+        List<String> userList = this.registerBuffer.getSessionList(tableId);
 
         ObjectMapper objectmapper = new ObjectMapper();
         String jsonMessageHead = objectmapper.writeValueAsString(payloadHead);
@@ -155,29 +162,55 @@ public class SynService {
     //when transactionCommit was called:
     //it means everything will be fine, just do it!
     @Transactional
-    public void transactionCommit(String databaseId, String transactionId, int transactionVersion, List<Map<String, Object>> operations){
+    public String transactionCommit(String databaseId, String transactionId, int transactionVersion, List<Map<String, Object>> operations) throws JsonProcessingException {
         //switch case for every write operation
         for (Map<String, Object> operation : operations) {
             String type = operation.get("type").toString();
+            changeType enumType = null;
             String tableId = operation.get("tableId").toString();
-            String rowId = operation.get("rowId").toString();
-            Map<String, String> payload = new HashMap<>();
-            payload = (Map<String, String>) operation.get("data");
+            Object rowId = "";
+            String errno = "";
+            String primaryKeyName = metaDataRepo.findDistinctFirstByTablebelong(tableId + "_Concat_" + databaseId).getPrimarykey();
+            if(operation.get("rowId") != null){
+                rowId = operation.get("rowId");
+            }
+            Map<String, Object> payload = new HashMap<>();
+            payload = (Map<String, Object>) operation.get("data");
+
             switch (type) {
                 case "add": {
-                    tableService.addRecord(databaseId, tableId, payload);
+                    errno = tableService.addRecord(databaseId, tableId, payload);
+                    enumType = changeType.add;
                 }
                 break;
                 case "update": {
-                    tableService.updateRecord(databaseId, tableId, rowId, payload);
+                System.out.println("transaction commit in update service!!!!!!!!!!!!!!!!");
+                    errno = tableService.updateRecord(databaseId, tableId, rowId, payload);
+                    enumType = changeType.modify;
                 }
                 break;
                 case "delete": {
-                    tableService.deleteRecord(databaseId, tableId, rowId);
+                    errno = tableService.deleteRecord(databaseId, tableId, rowId);
+                    enumType = changeType.delete;
                 }
                 break;
             }
-        }
-    }
 
+            if(Objects.equals(errno, "-1")){
+                return errno;
+            }
+            else{
+                System.out.println("Transaction commit and send ws message!!!!!!!!!!");
+                List<String> sessoinList = this.registerBuffer.getSessionList(tableId);
+                for(int i = 0; i < sessoinList.size(); ++i){
+                    System.out.println("start traverse sessionList in trasaction commit");
+                    this.sendMessageContent(
+                            generatePayloadContentHead(databaseId,tableId),generatePayloadContentChangeType(enumType), generatePayloadContentBody(payload, null,primaryKeyName,rowId).get(0)
+                    );
+                }
+                transactionBuffer.setTableDanger(tableId);
+            }
+        }
+        return "0";
+    }
 }

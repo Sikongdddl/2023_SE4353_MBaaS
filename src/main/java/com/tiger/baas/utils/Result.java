@@ -129,6 +129,14 @@ public class Result<T> {
         return result;
     }
 
+
+    public static Result error(String statusCode, String errMessage) {
+        Result result = new Result();
+        result.setStatusCode(statusCode);
+        result.setErrMessage(errMessage);
+        return result;
+    }
+
     public static Result error(String statusCode, String errMessage, int transactionversion) {
         Result result = new Result();
         result.setStatusCode(statusCode);

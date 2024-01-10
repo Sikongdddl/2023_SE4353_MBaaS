@@ -16,5 +16,5 @@ open-harmony frontend
 ## bookstore:
 a bookstore application demo developed with our MBaaS skeleton
 
-## API:
-interesting attempt combinding llm with our MBaaS
+## llm:
+golang-based interesting attempt combinding llm with our MBaaS 

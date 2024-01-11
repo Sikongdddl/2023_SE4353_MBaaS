@@ -281,6 +281,11 @@ struct OrderList {
             let newItems:Record<string, any>[] = [];
             let totalPrice = 0;
             this.orders = [];
+            let cmax:number = 0;
+            let cmin:number = 0;
+            let tot:number = 0;
+            let cnt:number = 0;
+
             console.log("233333333333333")
             console.log(JSON.stringify((records)));
             for (let record of records){
@@ -296,6 +301,23 @@ struct OrderList {
                   newOrder["totalPrice"] = totalPrice;
                   console.log(JSON.stringify(newOrder));
                   this.orders.push(newOrder);
+                  tot += totalPrice;
+                  cnt += 1;
+                  if (cmax == 0){
+                    cmax = totalPrice;
+                  }
+                  else{
+                    cmax = totalPrice > cmax ? totalPrice : cmax;
+                  }
+
+                  if (cmin == 0){
+                    cmin = totalPrice;
+                  }
+                  else{
+                    cmin = totalPrice < cmin ? totalPrice : cmin;
+                  }
+
+
                   newOrder = {};
                   newItems = [];
                   totalPrice = 0;
@@ -324,6 +346,25 @@ struct OrderList {
             newOrder["orderItems"] = newItems;
             newOrder["totalPrice"] = totalPrice;
             this.orders.push(newOrder);
+            tot += totalPrice;
+            cnt += 1;
+            if (cmax == 0){
+              cmax = totalPrice;
+            }
+            else{
+              cmax = totalPrice > cmax ? totalPrice : cmax;
+            }
+
+            if (cmin == 0){
+              cmin = totalPrice;
+            }
+            else{
+              cmin = totalPrice < cmin ? totalPrice : cmin;
+            }
+            this.sum = tot;
+            this.average = tot / cnt;
+            this.max = cmax;
+            this.min = cmin;
 
             // let res_sum = await db.table("orders").aggregation("totalprice", MBaaS.AGGREGATION_SUM).get();
             // this.sum = res_sum.pop().data()["sum"];
@@ -346,8 +387,8 @@ struct OrderList {
           .alignSelf(ItemAlign.Start)
           .margin({left:5})
         Row(){
-          Text("总和：" + JSON.stringify(this.sum)).layoutWeight(1)
-          Text("平均：" + JSON.stringify(this.average)).layoutWeight(1)
+          Text("总和：" + this.sum.toFixed(2)).layoutWeight(1)
+          Text("平均：" + this.average.toFixed(2)).layoutWeight(1)
         }.height(25).width("70%")
         .margin({top:5, left:"15%", right:"15%"})
         Row(){

@@ -678,10 +678,11 @@ namespace MBaaS{
     private aggre:[string, string] = undefined;
     private isTransaction:boolean = false;
     private transactionId:string;
+    private transactionVersion: number;
     private join:Record<string, string> = {};
 
     constructor(databaseId:string, tableId:string, whereField?:string, whereRelation?:string, whereTargetValue?:any, conditions?:Condition[],
-                orderFields?:[string, string][], aggregation?:[string, string], transactionId?:string, join?:Record<string, string>) {
+                orderFields?:[string, string][], aggregation?:[string, string], transactionId?:string, transactionVersion?:number,join?:Record<string, string>) {
       this.databaseId = databaseId;
       this.tableId = tableId;
       if (conditions != undefined) {
@@ -700,6 +701,7 @@ namespace MBaaS{
       if (transactionId != undefined){
         this.isTransaction = true;
         this.transactionId = transactionId;
+        this.transactionVersion = transactionVersion;
       }
       if (join != undefined){
         this.join = join;
@@ -721,7 +723,7 @@ namespace MBaaS{
         //   console.log(condition.whereRelation);
         //   console.log(condition.whereTargetValue);
         // }
-        console.log("MBaaS query")
+        console.log("MBaaS " + urlSuffix);
         console.log("whereconditions: " + JSON.stringify(this.conditions));
         console.log("join: " + JSON.stringify(this.join));
         httpRequest.request(
@@ -736,6 +738,8 @@ namespace MBaaS{
               "tableId": this.tableId,
               "whereConditions": this.conditions,
               "join": this.join,
+              "transactionId": this.transactionId,
+              "transactionVersion": this.transactionVersion
             },
           }
           , (err, data) => {
@@ -918,16 +922,19 @@ namespace MBaaS{
       this.transactionId = id;
       this.transactionVersion = ver;
       transactionStatus.set(id, TRANS_STATUS_RUNNING);
+      console.log("from transaction: " + this.transactionVersion)
     }
 
     public query(tableId:string, keyFieldValue?:any):Query {
+      console.log(tableId)
+      console.log(keyFieldValue)
       if (keyFieldValue == undefined){
-        let query = new Query(this.databaseId, tableId, undefined, undefined, undefined, undefined, undefined, undefined, this.transactionId);
+        let query = new Query(this.databaseId, tableId, undefined, undefined, undefined, undefined, undefined, undefined, this.transactionId, this.transactionVersion);
         return query;
       }
       else{
         let tableRef = tables.get(tableId);
-        let query = new Query(this.databaseId, tableId, tableRef.getKeyFieldName(), EQUAL, keyFieldValue, undefined, undefined, undefined, this.transactionId);
+        let query = new Query(this.databaseId, tableId, tableRef.getKeyFieldName(), EQUAL, keyFieldValue, undefined, undefined, undefined, this.transactionId, this.transactionVersion);
         return query;
       }
     }
@@ -966,9 +973,27 @@ namespace MBaaS{
   class TransForCommit extends Transaction {
     constructor(databaseId:string, id:string, ver:number) {
       super(databaseId, id, ver);
+      console.log("from transforcommit: " + this.transactionVersion);
+    }
+    increaseVersion(){
+      this.transactionVersion++;
+    }
+    getVersion(){
+      return this.transactionVersion;
+    }
+    getOperation():Operation[]{
+      return this.operations;
+    }
+    clearOperation(){
+      this.operations = [];
     }
     public async commit():Promise<string>{
       let httpRequest = http.createHttp();
+      console.log("----commit data----")
+      console.log("transactionId: " + this.transactionId);
+      console.log("transactionVersion: " + this.transactionVersion);
+      console.log(JSON.stringify(this.operations));
+      console.log("-------------------")
       let data = await httpRequest.request(
         Connect.httpAddress + 'transactionCommit',
         {
@@ -1311,7 +1336,8 @@ namespace MBaaS{
               },
               extraData: {
                 "databaseId": this.databaseId,
-                "tableId": tableId
+                "tableId": tableId,
+                "uuid": wsUid
               },
             },
             (err, data) => {
@@ -1338,7 +1364,7 @@ namespace MBaaS{
     }
 
     public join(tableId_1:string, fieldName_1:string, tableId_2:string, fieldName_2:string):Query{
-      let query = new Query(this.databaseId, TABLE_ID_JOIN, undefined, undefined, undefined, undefined, undefined, undefined, undefined, {
+      let query = new Query(this.databaseId, TABLE_ID_JOIN, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, {
         "tableId_1": tableId_1,
         "fieldId_1": fieldName_1,
         "tableId_2": tableId_2,
@@ -1399,7 +1425,7 @@ namespace MBaaS{
     //   return promise;
     // }
 
-    async createTransaction():Promise<string|[string,number]>{
+    private async createTransaction():Promise<string|[string,number]>{
       let httpRequest = http.createHttp();
       let data = await httpRequest.request(
         Connect.httpAddress + 'createTransaction',
@@ -1438,20 +1464,23 @@ namespace MBaaS{
         }
         let [id, ver] = response as [string, number];
         let transaction = new TransForCommit(this.databaseId, id, ver);
+        console.log("after create: " + transaction.getVersion());
         let tryCount = 0;
-        let maxCount = 4;
+        let maxCount = 5;
         let returnValue;
         do{
           transactionStatus.set(id, TRANS_STATUS_RUNNING);
           try {
             returnValue = await callback(transaction as Transaction);
             let res = await transaction.commit();
+            console.log("commit res: " + res);
             if (res != TRANS_COMMIT_SUCCESS){
               // reject(new Error(TRANS_FAILED));
               throw new Error(TRANS_FAILED);
             }
           } catch (error){
             console.log("try num: " + tryCount + "  catch " + error);
+
             if (error.message == TRANS_FAILED){
               transactionStatus.set(id, TRANS_STATUS_FAIL);
               // console.log("try time: " + tryCount);
@@ -1460,9 +1489,14 @@ namespace MBaaS{
                 break;
               }
               tryCount++;
+              transaction.increaseVersion();
+              console.log("new version " + transaction.getVersion());
+              console.log("operator: " + transaction )
+              transaction.clearOperation();
             }
             else{
-              resolve("Transaction failed! Error: " + error.message);
+              console.log(error)
+              break;
             }
           }
         }while(transactionStatus.get(id) != TRANS_STATUS_COMMIT);

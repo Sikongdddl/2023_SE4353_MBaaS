@@ -6,7 +6,7 @@
     {
       "name": "default",
       "runtimeOS": "HarmonyOS"
-//      "runtimeOS": "OpenHarm ony"
+//      "runtimeOS": "OpenHarmony"
     },
     {
       "name": "ohosTest",

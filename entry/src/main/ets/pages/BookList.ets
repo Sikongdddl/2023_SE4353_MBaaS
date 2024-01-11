@@ -20,6 +20,25 @@ struct BookList {
     // }
   ];
   unSubscribe;
+  async fresh() {
+    console.log("book list fresh");
+    console.log(JSON.stringify(this.books))
+    let db: MBaaS.DatabaseHelper = globalThis.db;
+    this.books = [];
+    let records = await db.table("book").get();
+    console.log(JSON.stringify(records));
+    for (let record of records){
+      let data:Record<string, any> = record.data();
+      let newBook:Record<string, any> = {}
+      newBook["name"] = data["name"];
+      newBook["price"] = data["price"];
+      newBook["count"] = data["count"];
+      newBook["image"] = data["image"];
+      newBook["isbn"] = data["isbn"];
+      this.books.push(newBook);
+      console.log(JSON.stringify(newBook));
+    }
+  }
   async onPageShow(){
     console.log("book list appear");
     let db: MBaaS.DatabaseHelper = globalThis.db;
@@ -42,15 +61,35 @@ struct BookList {
     this.unSubscribe = db.table("book").subscribe(
       (data) => {
         console.log("call back")
+        // this.books = [];
         console.log(JSON.stringify(data))
         if (data.messageType == MBaaS.SYN_CONTENT){
+
           let contentData = data as MBaaS.contentData;
-
-
-
-
           let data_1 = contentData.updateData.pop();
           console.log(JSON.stringify(data_1))
+
+          let target = 0;
+          let newBook:Record<string, any> = {};
+          for (const [index, book] of this.books.entries()){
+            // console.log(book["isbn"])
+            if (book["isbn"] == data_1.newItem["isbn"]){
+              // console.log("hhhhhhhhhhhh")
+              target = index;
+              newBook = book;
+              break;
+            }
+          }
+          for (const key in data_1.newItem){
+            console.log(key)
+            console.log(data_1.newItem[key])
+            newBook[key] = data_1.newItem[key];
+          }
+          console.log("update " + target.toString())
+          let newBooks = this.books;
+          newBooks[target] = newBook;
+          this.books = []
+          this.books = newBooks;
         }
         else if (data.messageType == MBaaS.SYN_FIELD){
           let fieldData = data as MBaaS.fieldData;
@@ -142,7 +181,8 @@ struct BookList {
                 imageUrl:item.image,
                 name: item.name,
                 price: item.price,
-                count: item.count
+                count: item.count,
+                isbn: item.isbn,
               });
             }
           })
@@ -209,24 +249,23 @@ struct BookList {
 
   }
 
-  @Builder
-  BookList(){
-    Column(){
-      List() {
-        ForEach(this.books, (item) => {
-          ListItem(){
-            BookCard({
-              imageUrl:item.image,
-              name: item.name,
-              price: item.price,
-              count: item.count,
-              isbn: item.isbn,
-            });
-          }
-        })
-      }
-    }
-
-  }
+  // @Builder BookList(){
+  //   Column(){
+  //     List() {
+  //       ForEach(this.books, (item) => {
+  //         ListItem(){
+  //           BookCard({
+  //             imageUrl:item.image,
+  //             name: item.name,
+  //             price: item.price,
+  //             count: item.count,
+  //             isbn: item.isbn,
+  //           });
+  //         }
+  //       })
+  //     }
+  //   }
+  //
+  // }
 
 }

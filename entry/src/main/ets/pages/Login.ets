@@ -135,6 +135,53 @@ struct Login{
           })
         })
 
+      Button("建表")
+        .alignRules({
+          bottom: { anchor: '__container__', align: VerticalAlign.Bottom },
+          left: { anchor: '__container__', align: HorizontalAlign.Start }
+        })
+        .id("create_table")
+        .margin({left:10, bottom:10})
+        .onClick(()=>{
+          let db:MBaaS.DatabaseHelper = globalThis.db;
+          db.table("new_table").setFields({
+            "field_1": "int",
+            "filed_2": "string",
+            "filed_3": "double",
+          })
+        })
+
+      Button("新增字段")
+        .alignRules({
+          bottom: { anchor: '__container__', align: VerticalAlign.Bottom },
+          left: { anchor: 'create_table', align: HorizontalAlign.End }
+        })
+        .id("add_field")
+        .margin({left:10, bottom:10})
+        .onClick(()=>{
+          let db:MBaaS.DatabaseHelper = globalThis.db;
+          db.table("new_table").addField("field_add", "string");
+        })
+
+
+      Button("删除字段")
+        .alignRules({
+          bottom: { anchor: '__container__', align: VerticalAlign.Bottom },
+          left: { anchor: 'add_field', align: HorizontalAlign.End }
+        })
+        .id("delete_field")
+        .margin({left:10, bottom:10})
+        .onClick(()=>{
+          let db:MBaaS.DatabaseHelper = globalThis.db;
+          db.table("new_table").deleteField("field_add").then((res)=>{
+            console.log("delete field " + res)
+          }).catch((err)=>{
+            console.log(err)
+          })
+        })
+
+
+
 
 
 

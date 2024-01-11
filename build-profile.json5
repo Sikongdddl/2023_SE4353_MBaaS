@@ -5,9 +5,9 @@
         "name": "default",
         "material": {
           "certpath": "C:\\Users\\Administrator.DESKTOP-72VUBCO\\.ohos\\config\\openharmony\\auto_ohos_default_BookStore_com.example.bookstore.cer",
-          "storePassword": "0000001BD1ADBD7A759BD4561CE37A74B0E451F8D761994418D978136A7F697170CF5256F2B05737960F93",
+          "storePassword": "0000001BC0974F43EDA707941580CB8BB9C1C4A955F4DA0288E1A975ECC83CAE4081C009309D38A4B3B064",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001B9178CACF853089645170D327A5B55A1B678E0AED16F62F83A4FDD9B44CF0B0E2E5A28BF9B7BAE9",
+          "keyPassword": "0000001B8BA2B031EE3F21D90DD6412C5FA7F010D4365A440D2DDA1C54438EA4B6DCC278445BFE1FC94506",
           "profile": "C:\\Users\\Administrator.DESKTOP-72VUBCO\\.ohos\\config\\openharmony\\auto_ohos_default_BookStore_com.example.bookstore.p7b",
           "signAlg": "SHA256withECDSA",
           "storeFile": "C:\\Users\\Administrator.DESKTOP-72VUBCO\\.ohos\\config\\openharmony\\auto_ohos_default_BookStore_com.example.bookstore.p12"
